@@ -1,0 +1,45 @@
+FIRST PRIORITY
+
+Formulator
+- нормализовать скользящие
+- проверить корректность индикаторов ТА (поискать онлайн)
+- добавить индикаторов
+- самодельные показатели volume numtrades дают слишком большо выброс,
+переделать и/или заменить на типовые
+- многие индикатор размножить (не только по close)
+- добавить разных периодов в MACD и т.п.
+- добавить тикеров
+import mplfinance as mpf
+import talib
+детальнее проанализировать логику формирования Y (особенно для регресса)
+При классификации Y всегда будет перекошенный в сторону 0, нужно ли что-то с этим делать
+переоценить - нужен ли тикер в X
+
+Predictor
+- bayes
+- optuna
+- https://habr.com/ru/companies/otus/articles/754402/
+- XGBOOST
+- can't draw a gradient boos yet
+- какие графики метрик для регресса можно нарисовать
+
+--------------------------------------------------
+SECOND PRIORITY
+модель нейронных сетей (NNET).
+https://habr.com/ru/articles/485890/#
+
+--------------------------------------------------
+
+THIRD PRORITY
+timeseries
+https://tsfresh.readthedocs.io/en/latest/text/introduction.html
+http://www.mbureau.ru/articles/dissertaciya-model-prognozirovaniya-vremennyh-ryadov-glava-1#p_1
+
+
+--------------------------------------------------
+CONSTANT USEFUL LINKS
+https://www.kaggle.com/
+
+---------------------------------------------------
+TO SORT
+
