@@ -1,0 +1,111 @@
+---------------------------------------------------------------------------------------------------------------------
+Formulator
+---------------
+- нормализовать скользящие
+- проверить корректность индикаторов ТА (поискать онлайн)
+- добавить индикаторов
+- самодельные показатели volume numtrades дают слишком большо выброс,
+переделать и/или заменить на типовые
+- многие индикатор размножить (не только по close)
+- добавить разных периодов в MACD и т.п.
+- добавить тикеров
+import mplfinance as mpf
+import talib
+детальнее проанализировать логику формирования Y (особенно для регресса)
+Imbalanced classification
+переоценить - нужен ли тикер в X
+
+Predictor-
+-----------
+- bayes
+- optuna
+- https://habr.com/ru/companies/otus/articles/754402/
+- XGBOOST
+- can't draw a gradient boos yet
+- какие графики метрик для регресса можно нарисовать
+
+--------------------------------------------------
+CONSTANT USEFUL LINKS
+https://www.kaggle.com/
+http://www.graphviz.org/Gallery.php
+https://machinelearningmastery.com/start-here/
+https://www.kaggle.com/sharmasanthosh/exploratory-study-on-ml-algorithms
+http://www.machinelearning.ru
+https://ods.ai/tracks
+https://habr.com/ru/companies/ods/articles/
+http://datascientist.one/12-algorithms-data-scientist-should-know/
+http://datascientist.one/top-10-data-mining-algorithms/
+https://docs.google.com/spreadsheets/d/1dXghGL0hH6gs3H9Km7zhOpk9MWufRJ_bSrFw0NLaRuo/edit#gid=0
+https://www.kaggle.com/code/sharmasanthosh/exploratory-study-on-ml-algorithms
+--------------------------------------------------
+модель нейронных сетей (NNET).
+https://habr.com/ru/articles/485890/#
+https://habrahabr.ru/company/ods/blog/324898/
+https://habrahabr.ru/post/327022/
+https://machinelearningmastery.com/regression-tutorial-keras-deep-learning-library-python/
+https://machinelearningmastery.com/tutorial-first-neural-network-python-keras/
+http://the-charlie.com/ml/index.php/blog/
+https://habr.com/ru/companies/ods/articles/325432/
+https://habrahabr.ru/post/312450/
+https://habrahabr.ru/post/313216/
+http://www.orbifold.net/default/2016/11/25/some-feedforward-neural-networks-using-keras/
+http://www.orbifold.net/default/2016/11/18/bare-bones-of-neural-networks/
+https://github.com/fchollet/keras/tree/master/examples
+https://habrahabr.ru/post/340792/
+http://www.asimovinstitute.org/neural-network-zoo/
+https://habrahabr.ru/company/ods/blog/323272/
+https://habrahabr.ru/company/wunderfund/blog/314242/
+https://habrahabr.ru/post/342176/
+https://habrahabr.ru/post/342334/
+https://www.labirint.ru/books/600766/
+https://habrahabr.ru/post/312450/
+https://habrahabr.ru/post/313216/
+https://habrahabr.ru/post/275429/
+https://habrahabr.ru/post/148407/
+https://habrahabr.ru/post/331740/
+https://habrahabr.ru/company/wunderfund/blog/314242/
+https://habrahabr.ru/company/wunderfund/blog/314872/
+https://habrahabr.ru/company/wunderfund/blog/315476/
+https://habrahabr.ru/company/ods/blog/344008/
+https://www.youtube.com/playlist?list=PL3FW7Lu3i5Jsnh1rnUwq_TcylNr7EkRe6
+--------------------------------------------------
+TREE
+https://tech.yandex.ru/CatBoost/
+--------------------------------------------------
+TIMESERIES
+https://tsfresh.readthedocs.io/en/latest/text/introduction.html
+http://www.mbureau.ru/articles/dissertaciya-model-prognozirovaniya-vremennyh-ryadov-glava-1#p_1
+--------------------------------------------------
+FEATURE ENGINEERING
+http://www.ultravioletanalytics.com/2014/11/10/kaggle-titantic-competition-part-v-interaction-variables/
+https://habr.com/ru/articles/308162/
+https://habrahabr.ru/company/mlclass/blog/248129/
+https://habrahabr.ru/company/mlclass/blog/249759/
+https://www.kaggle.com/code/benhamner/python-data-visualizations/notebook?scriptVersionId=0
+https://habr.com/ru/companies/ods/articles/323210/
+---------------------------------------------------
+SCHOOL_COURCES_BOOKS
+TODO добавить степик заодно
+https://yandexdataschool.ru/edu-process/program/special-courses/deep-learning
+https://yandexdataschool.ru/edu-process/program/data-analysis
+https://github.com/yandexdataschool/Practical_RL
+https://github.com/esokolov/ml-course-hse
+https://github.com/hangtwenty/dive-into-machine-learning
+https://github.com/ujjwalkarn/Machine-Learning-Tutorials#semi
+https://www.deeplearningbook.org/
+http://neuralnetworksanddeeplearning.com/chap5.html
+https://github.com/minikarma/geotalk#%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82
+https://github.com/leriomaggio/deep-learning-keras-tensorflow
+https://ru.stackoverflow.com/questions/678970/%D0%9A%D0%BD%D0%B8%D0%B3%D0%B8-%D0%B8-%D1%83%D1%87%D0%B5%D0%B1%D0%BD%D1%8B%D0%B5-%D1%80%D0%B5%D1%81%D1%83%D1%80%D1%81%D1%8B-%D0%BF%D0%BE-%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%D0%BD%D0%BE%D0%BC%D1%83-%D0%BE%D0%B1%D1%83%D1%87%D0%B5%D0%BD%D0%B8%D1%8E/683632#683632
+https://github.com/esokolov/ml-course-msu
+https://www.davidsilver.uk/teaching/
+https://github.com/josephmisiti/awesome-machine-learning
+http://www.machinelearning.ru/wiki/images/6/6d/Voron-ML-1.pdf
+---------------------------------------------------
+OTHER
+https://github.com/demidovakatya/vvedenie-mashinnoe-obuchenie/blob/master/datasets.md
+http://www.mmds.org
+https://github.com/infoculture/awesome-culture-opendata#example%20projects
+https://data.mos.ru/
+https://github.com/infoculture/awesome-opendata-rus
+https://stackoverflow.com/questions/23508351/how-to-do-workaround-a-conditional-join-in-python-pandas

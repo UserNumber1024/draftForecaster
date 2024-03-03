@@ -13,7 +13,7 @@ class MOEXAdapter:
 
     Loads data using GET http-requests to the appropriate REST API
 
-    Supports automatic loading of multi-page responses
+    Supports automatic loading of multipage responses
 
     Methods
     -------
@@ -36,10 +36,10 @@ class MOEXAdapter:
 
         # api-params (http-request params)
         self.__params = {}
-        self.__endpoint: str
+        self.__endpoint = None
 
         # name of object, expected in api response, e.g. 'history' or 'candles'
-        self.__parsing_objest: str
+        self.__parsing_objest = None
 
     def __prepare_params(self,
                          from_: str = None, till: str = None,
@@ -121,7 +121,7 @@ class MOEXAdapter:
             except BaseException:
                 raise
 
-            # iterate through other pages (if there more then one)
+            # iterate through other pages (if there's more than one)
             while start <= total:
 
                 page = self.__get_one_page(start)
@@ -159,7 +159,7 @@ class MOEXAdapter:
             # set start page for next call
             start = chunk_size
 
-            # iterate through other pages, if there any data in result
+            # iterate through other pages, if there are any data in result
             while chunk_size:
                 page = self.__get_one_page(start)
 

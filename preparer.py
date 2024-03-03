@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from sklearn import decomposition
 from sklearn.manifold import TSNE
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 import pandas_ta as pta
 from math import ceil
 
@@ -14,13 +13,15 @@ clf = 'clf'
 regr = 'regr'
 file = 'file'
 moex = 'moex'
+
+
 # -----------------------------------------------------------------------------
 
 
 class MOEXtoXY:
     """Get OHCL-data from MOEX and transform it to train/prediction dataset."""
 
-    def __init__(self, moex_ticker_ids={}, ta_indicators=[]):
+    def __init__(self, moex_ticker_ids=None, ta_indicators=None):
         """Initialize default data processing and preparation params.
 
         Parameters
@@ -32,13 +33,15 @@ class MOEXtoXY:
         ta_indicators: list of supported TA indicators
 
         """
-        if moex_ticker_ids == {}:
+        if not moex_ticker_ids == {}:
             self.moex_ticker_ids = {'SBER': 0.1,
                                     'GAZP': 0.2,
                                     'LKOH': 0.3,
-                                    'SIBN': 0.4
+                                    'SIBN': 0.4,
+                                    'POSI': 0.5,
+                                    'IRAO': 0.6
                                     }
-        if ta_indicators == []:
+        if not ta_indicators:
             self.ta_indicators = [
                 'tickerId',
                 # 'macd12_26_9', отражает стоимость, т.е. завивит от тикера и даты, надо как-то нормализовать
@@ -52,7 +55,7 @@ class MOEXtoXY:
                 'atr14',
                 'cci14',
                 # 'mom1',  какие-то выбросы, надо разобраться, может 24+- исключить из выборки (хотя лучше нет)
-                # 'stdev15', порядок отклонения также зависит от порядка цены. попробовать ввести некий множитель для цен
+                # 'stdev15' порядок отклонения также зависит от порядка цены. попробовать ввести некий множитель для цен
                 'bop',
                 'trix14',
                 # 'ema5_ohlc', отражает стоимость
@@ -71,9 +74,13 @@ class MOEXtoXY:
                 'high2openInc',
                 'low2openInc',
                 'dayOfWeek']
+        self.length = None
+        self.Y_type = None
+        self.X = None
+        self.Y = None
 
     def prepare_XY(self,
-                   tickers=[],
+                   tickers=None,
                    start="2015-01-01",
                    end="2023-12-31",
                    store2file=True,
@@ -127,7 +134,7 @@ class MOEXtoXY:
         Also return prices - OHLCV from MOEX enriched with X and Y.
 
         """
-        if tickers == []:
+        if not tickers:
             tickers = list(self.moex_ticker_ids.keys())
         X = pd.DataFrame()
         Y = pd.DataFrame()
@@ -147,7 +154,7 @@ class MOEXtoXY:
             elif source == file:
                 ticker_data = pd.read_csv(filename)
 
-            x_ticker, y_ticker, prices_ticker = self.__сalc_TA_profit(
+            x_ticker, y_ticker, prices_ticker = self.__calc_TA_profit(
                 ticker, ticker_data)
             X = pd.concat([X, x_ticker])
             Y = pd.concat([Y, y_ticker])
@@ -164,12 +171,12 @@ class MOEXtoXY:
         """Extract OHLCV columns from MOEX full data, rename to common ones."""
         prices = moex_data[["TRADEDATE", "OPEN", "LOW",
                             "HIGH", "LEGALCLOSEPRICE",
-                           "VOLUME", "NUMTRADES", "SECID"]]
+                            "VOLUME", "NUMTRADES", "SECID"]]
         prices.columns = ['Date', 'Open', 'Low',
                           'High', 'Close', 'Volume', 'Numtrades', 'Ticker']
         return prices
 
-    def __сalc_TA_profit(self, ticker: str, moex_ticker_data: pd.DataFrame):
+    def __calc_TA_profit(self, ticker: str, moex_ticker_data: pd.DataFrame):
         """Generate indicators for model training and forecasting.
 
         length and Y_type retrieved from class attributes.
@@ -179,7 +186,7 @@ class MOEXtoXY:
         ticker: str
             MOEX ticker in upcase, e.g. "SBER" (see getMoex_ticker_ids),
 
-        moex_data
+        moex_ticker_data
             MOEX API-response in pd.DataFrame form,
 
         Return
@@ -222,43 +229,43 @@ class MOEXtoXY:
                               axis=1).fillna(0).replace(np.inf, 0)
 
             elif i == 'rsi3':
-                X = pd.concat([X, pta.rsi(close=C, length=3)/100],
+                X = pd.concat([X, pta.rsi(close=C, length=3) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
 
             elif i == 'rsi5':
-                X = pd.concat([X, pta.rsi(close=C, length=5)/100],
+                X = pd.concat([X, pta.rsi(close=C, length=5) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
 
             elif i == 'rsi14':
                 X = pd.concat([X, pta.rsi(close=C,
-                                          length=14)/100],
+                                          length=14) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
 
             elif i == 'rsi21':
-                X = pd.concat([X, pta.rsi(close=C, length=21)/100],
+                X = pd.concat([X, pta.rsi(close=C, length=21) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
                 # !!! ^^^^^^возможно есть смысл сделать по всем столбцам
 
             elif i == 'wpr14':
                 X = pd.concat([X, pta.willr(high=H, low=L, close=C,
-                                            length=14)/100],
+                                            length=14) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
             elif i == 'stoch14_3':
                 X = pd.concat([X, pta.stoch(high=H, low=L, close=C,
-                                            k=14, d=3)/100],
+                                            k=14, d=3) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
 
             elif i == 'adx14':
                 X = pd.concat([X, pta.adx(high=H, low=L, close=C,
-                                          length=14)/100],
+                                          length=14) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
             elif i == 'atr14':
                 X = pd.concat([X, pta.atr(high=H, low=L, close=C,
-                                          length=14)/100],
+                                          length=14) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
             elif i == 'cci14':
                 X = pd.concat([X, pta.cci(high=H, low=L, close=C,
-                                          length=14)/100],
+                                          length=14) / 100],
                               axis=1).fillna(0).replace(np.inf, 0)
             elif i == 'mom1':
                 X = pd.concat([X, pta.mom(close=C, length=1)],
@@ -348,7 +355,7 @@ class MOEXtoXY:
                               axis=1).fillna(0).replace(np.inf, 0)
             elif i == 'dayOfWeek':
 
-                X = pd.concat([X, pd.Series(Date.dt.dayofweek/10,
+                X = pd.concat([X, pd.Series(Date.dt.dayofweek / 10,
                                             name='DayOfW')], axis=1)
 
         # Y - profit
@@ -357,7 +364,7 @@ class MOEXtoXY:
         # calculate the mean price increment for N days
         mean = pta.hlc3(H, L, C).fillna(-1000).replace(np.inf, -1000)
         mean_forecast = pta.hlc3(
-            H.shift(-length),  L.shift(-length),
+            H.shift(-length), L.shift(-length),
             C.shift(-length)).fillna(-1000).replace(np.inf, -10)
 
         profit = pd.Series(((mean_forecast - mean) / mean), name='profitInc'
@@ -381,7 +388,7 @@ class MOEXtoXY:
 
     def draw_X_Y(self):
         """Visualisation of training dataset."""
-        h = ceil(len(self.X.columns)**(1/2))
+        h = ceil(len(self.X.columns) ** (1 / 2))
         fig_hist = plt.figure(figsize=(30, 30))
         for i, column in enumerate(self.X.columns):
             plt.subplot(h, h, i + 1)
@@ -390,18 +397,14 @@ class MOEXtoXY:
             plt.axvline(self.X[column].median(), color='black', linestyle='--')
 
         plt.tight_layout()
-        plt.show()
         fig_hist.savefig("graph/x_hist.png")
 
         fig_box = plt.figure(figsize=(90, 90))
         sns.boxplot(data=self.X, palette="Set1", showmeans=True, orient='h')
-        # plt.xticks(rotation=90)
-        plt.show()
         fig_box.savefig("graph/x_box.png")
 
         fig_heat = plt.figure(figsize=(30, 30), dpi=80)
         sns.heatmap(self.X.corr(), cmap='RdYlGn', annot=True)
-        plt.show()
         fig_heat.savefig("graph/x_heatmap.png")
 
         fig_Y = plt.figure(figsize=(10, 10))
@@ -450,7 +453,6 @@ class MOEXtoXY:
             ax_expl[1].set_ylabel("Cumulative explained variance")
 
             fig_expl.tight_layout()
-            plt.show()
             fig_expl.savefig("graph/pca_explain.png")
 
         if reduce_to_95:
@@ -468,13 +470,12 @@ class MOEXtoXY:
             plt.title(f"PCA {dimens}D data to 3D projection")
 
             for i in range(4):
-                ax = fig_draw.add_subplot(2, 2, i+1, projection='3d')
+                ax = fig_draw.add_subplot(2, 2, i + 1, projection='3d')
                 ax.scatter3D(X_3d[:, 0], X_3d[:, 1], X_3d[:, 2],
                              c=self.Y, alpha=0.7, s=40,
                              cmap='plasma')
-                ax.view_init(30 * i, 60 * (i+1))
+                ax.view_init(30 * i, 60 * (i + 1))
             fig_draw.tight_layout()
-            plt.show()
             fig_draw.savefig("graph/pca.png")
 
         return X_reduced
@@ -482,7 +483,7 @@ class MOEXtoXY:
     def draw_tSNE(self, perplexity=30,
                   debug=0, n_jobs=1, n_iter=500):
         """Draws training dataset, reduced to 3D projection with t-SNE."""
-        tsne = TSNE(n_components=3,  perplexity=perplexity,
+        tsne = TSNE(n_components=3, perplexity=perplexity,
                     verbose=debug, n_jobs=n_jobs, n_iter=n_iter,
                     random_state=52)
 
@@ -496,14 +497,13 @@ class MOEXtoXY:
         plt.title(f"{dimens}D data to t-SNE 3D projection")
 
         for i in range(4):
-            ax = fig.add_subplot(2, 2, i+1, projection='3d')
+            ax = fig.add_subplot(2, 2, i + 1, projection='3d')
             ax.scatter3D(X_tsne[:, 0], X_tsne[:, 1], X_tsne[:, 2],
                          c=self.Y, alpha=0.7, s=40,
                          cmap='plasma')
-            ax.view_init(30 * i, 60 * (i+1))
+            ax.view_init(30 * i, 60 * (i + 1))
 
         fig.tight_layout()
-        plt.show()
         fig.savefig("graph/SNE.png")
 
         return X_tsne

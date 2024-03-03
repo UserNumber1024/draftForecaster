@@ -19,6 +19,7 @@ from sklearn.tree import (DecisionTreeClassifier,
                           DecisionTreeRegressor, plot_tree)
 from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
                                      train_test_split, cross_val_score)
+
 # CONSTANTS--------------------------------------------------------------------
 tree = 'tree'
 extra = 'extra'
@@ -29,6 +30,8 @@ clf = 'clf'
 regr = 'regr'
 rand = 'rand'
 grid = 'grid'
+
+
 # -----------------------------------------------------------------------------
 
 
@@ -133,7 +136,7 @@ class TreePredictor:
                     model_type='tree',
                     n_jobs=1,
                     random_n_iter=100,
-                    params={}
+                    params=None
                     ):
         """Train model.
 
@@ -161,10 +164,14 @@ class TreePredictor:
         random_n_iter : int, default = 100
             Number of sampled params setting (used for random search)
 
+        params: dict of hyperparameters
+            use defaults if not defined
+
         Returns
         -------
             Best trained model
         """
+
         if self.debug >= 1:
             start_timer = time.time()
             print('{:-^50}'.format("-"))
@@ -177,56 +184,56 @@ class TreePredictor:
         if model_type == tree:
             if self.Y_type == clf:
                 model = DecisionTreeClassifier()
-                if params == {}:
+                if not params:
                     params = {**self.tree_clf_criterion, **self.tree_params}
             elif self.Y_type == regr:
                 model = DecisionTreeRegressor()
-                if params == {}:
+                if not params:
                     params = {**self.tree_regr_criterion, **self.tree_params}
 
         elif model_type == forest:
             if self.Y_type == clf:
                 model = RandomForestClassifier()
-                if params == {}:
+                if not params:
                     params = {**self.tree_clf_criterion, **self.tree_params,
                               **self.forest_params}
             elif self.Y_type == regr:
                 model = RandomForestRegressor()
-                if params == {}:
+                if not params:
                     params = {**self.forest_regr_criterion, **self.tree_params,
                               **self.forest_params}
 
         elif model_type == ada:
             if self.Y_type == clf:
                 model = AdaBoostClassifier()
-                if params == {}:
+                if not params:
                     params = {**self.ada_params}
             elif self.Y_type == regr:
                 model = AdaBoostRegressor()
-                if params == {}:
+                if not params:
                     params = {**self.ada_regr_criterion, **self.ada_params}
 
         elif model_type == extra:
             if self.Y_type == clf:
                 model = ExtraTreesClassifier()
-                if params == {}:
+                if not params:
                     params = {**self.tree_clf_criterion, **self.tree_params,
                               **self.forest_params}
             elif self.Y_type == regr:
                 model = ExtraTreesRegressor()
-                if params == {}:
+                if not params:
                     params = {**self.extra_regr_criterion, **self.tree_params,
                               **self.forest_params}
 
         elif model_type == gbdt:
             if self.Y_type == clf:
                 model = GradientBoostingClassifier()
-                if params == {}:
+                if not params:
                     params = {**self.gbdt_clf_criterion, **self.tree_params,
                               **self.forest_params}
             elif self.Y_type == regr:
                 model = GradientBoostingRegressor()
-                if params == {}:
+                if not params:
                     params = {**self.gbdt_regr_criterion, **self.tree_params,
                               **self.forest_params}
 
@@ -267,6 +274,7 @@ class TreePredictor:
         and model retrieved from class private attributes,
 
         """
+
         def prnt(col1='', col2=''):
             # simple table-like print out
             print('{: <35}'.format(col1), '|', col2)
@@ -327,20 +335,21 @@ class TreePredictor:
             feats = model.get_params()['max_features']
             # dumb logic, but no sense of improvement.
             h = depth * 2 if h == 0 else h
+            h = 65536 if h > 65536 else h
             w = leafes * feats * 6 / h if w == 0 else w
+            w = 65536 if w > 65536 else w
 
             fig, ax = plt.subplots(figsize=(w, h), dpi=300)
             plot_tree(model, feature_names=list(self.X),
                       class_names=['loss', 'profit'],
                       filled=True, ax=ax, fontsize=8)
-            plt.show()
             fig.savefig("graph/model_tree.png")
 
         elif model_type in [forest, ada, extra]:
             if model_type in [forest, extra]:
                 h = 50 if h == 0 else h
                 w = 50 if w == 0 else w
-            elif (model_type == ada):
+            elif model_type == ada:
                 h = 20 if h == 0 else h
                 w = 20 if w == 0 else w
             fig, ax = plt.subplots(nrows=model.get_params()['n_estimators'],
@@ -350,8 +359,7 @@ class TreePredictor:
                           class_names=['loss', 'profit'],
                           filled=True, ax=ax[i], fontsize=8)
                 ax[i].set_title('Estimator: ' + str(i), fontsize=8)
-            plt.show()
-            fig.savefig("graph/model_"+model_type+".png")
+            fig.savefig("graph/model_" + model_type + ".png")
 
     def draw_metrics(self):
         """Draw metrics from last model training.
