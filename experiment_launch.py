@@ -1,5 +1,5 @@
-from predictors import TreePredictor
-from preparer import MOEXtoXY
+from lib.predictors import TreePredictor
+from lib.preparer import MOEXtoXY
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -18,7 +18,7 @@ random_n_iter = 5
 draw_xy = True
 draw_pca = True
 draw_tSNE = False
-train_model = True
+train_model = False
 print_metrics = True
 draw_metrics = True
 draw_model = False
