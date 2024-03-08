@@ -19,6 +19,8 @@ from sklearn.tree import (DecisionTreeClassifier,
                           DecisionTreeRegressor, plot_tree)
 from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
                                      train_test_split, cross_val_score)
+from skopt import BayesSearchCV
+from skopt.space import Integer, Real, Categorical
 
 # CONSTANTS--------------------------------------------------------------------
 tree = 'tree'
@@ -30,12 +32,13 @@ clf = 'clf'
 regr = 'regr'
 rand = 'rand'
 grid = 'grid'
+bayes_search = 'bayes_search'
 
 
 # -----------------------------------------------------------------------------
 
 
-class TreePredictor:
+class Predictor:
     """Tree-like models training."""
 
     def __init__(self, X: pd.DataFrame, Y: pd.DataFrame, Y_type: str,
@@ -101,6 +104,13 @@ class TreePredictor:
         self.seed = seed
         self.rnd_state = np.random.randint(
             1, 500) if rnd_state == 0 else rnd_state
+        self.bayes_search_space = {
+            "max_depth": Integer(6, 20),  # values of max_depth are integers from 6 to 20
+            "max_features": Categorical(['auto', 'sqrt', 'log2']),
+            "min_samples_leaf": Integer(2, 10),
+            "min_samples_split": Integer(2, 10),
+            "n_estimators": Integer(5, 20)
+        }
 
     def __get_model_type(self):
         """Define model_type by model from Class attributes."""
@@ -133,9 +143,9 @@ class TreePredictor:
 
     def tree_search(self,
                     search_type=rand,
-                    model_type='tree',
+                    model_type=tree,
                     n_jobs=1,
-                    random_n_iter=100,
+                    random_n_iter=10,
                     params=None
                     ):
         """Train model.
@@ -147,9 +157,11 @@ class TreePredictor:
 
         Parameters
         ----------
-        search_type : {"rand", "grid"}
+        search_type : {"rand", "grid", "bayes_search"}, default "rand"
             * if 'rand' use random search to tune hyperparameters.
             * if 'grid' use grid search to tune hyperparameters.
+            * if 'bayes_search' use bayes optimization to tune hyperparameters
+              (ignore model_type, 'forest' model auto use)
 
         model_type : {"tree", "forest", "ada", "extra", "gbdt"}, default "tree"
             * if 'tree' train tree model.
@@ -251,12 +263,19 @@ class TreePredictor:
                                        verbose=self.debug,
                                        n_jobs=n_jobs)
 
+        elif search_type == bayes_search:
+            model = RandomForestClassifier()
+            tree_search = BayesSearchCV(model,
+                                        search_spaces=self.bayes_search_space,
+                                        cv=5,
+                                        verbose=self.debug,
+                                        n_jobs=n_jobs,
+                                        n_iter=random_n_iter)
+
         if self.debug >= 1:
             print("Class ", model.__class__.__name__)
 
         tree_search.fit(X_train, y_train.values.ravel())
-        model = model.fit(X_train, y_train.values.ravel())
-
         self.trained_model = tree_search.best_estimator_
 
         if self.debug >= 1:

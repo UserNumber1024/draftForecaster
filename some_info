@@ -10,7 +10,6 @@ Imbalanced classification
 
 Predictor-
 -----------
-- bayes
 - optuna
 - https://habr.com/ru/companies/otus/articles/754402/
 - XGBOOST
