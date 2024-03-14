@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import optuna
 from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
                               AdaBoostClassifier, AdaBoostRegressor,
                               ExtraTreesClassifier, ExtraTreesRegressor,
@@ -33,6 +34,7 @@ regr = 'regr'
 rand = 'rand'
 grid = 'grid'
 bayes_search = 'bayes_search'
+optuna_search = 'optuna_search'
 
 
 # -----------------------------------------------------------------------------
@@ -42,8 +44,7 @@ class Predictor:
     """Tree-like models training."""
 
     def __init__(self, X: pd.DataFrame, Y: pd.DataFrame, Y_type: str,
-                 rnd_state=0, seed=0.33,
-                 debug=0, ):
+                 rnd_state=0, seed=0.33, debug=0):
         """Initialize default models hyperparams and attributes.
 
         Store training dataset, target class (variable)
@@ -72,6 +73,7 @@ class Predictor:
         -------
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         """
+        self.search_type = None
         self.X = X
         self.Y = Y
         self.Y_type = Y_type
@@ -82,13 +84,13 @@ class Predictor:
         self.tree_params = {'max_depth': range(5, 100),
                             'max_features': range(4, 60),
                             'min_samples_split': range(2, 10),
-                            'min_samples_leaf': range(2, 5),
+                            'min_samples_leaf': range(2, 10),
                             'max_leaf_nodes': range(10, 400)}
-        self.forest_params = {'n_estimators': [7, 5, 3]  # 20, 50, 100, 150],
+        self.forest_params = {'n_estimators': [10, 7, 5, 3, 12, 20, 15]  # 20, 50, 100, 150],
                               }
         self.forest_regr_criterion = {'criterion': [
             "squared_error", "absolute_error", "poisson"]}
-        self.ada_params = {'n_estimators': [10, 7, 5, 3, 12],
+        self.ada_params = {'n_estimators': [10, 7, 5, 3, 12, 20, 15],
                            # 'n_estimators': [10, 5, 20, 50, 100, 150, 200],
                            "learning_rate": [0.1, 0.01, 0.2, 0.05, 0.5, 1]
                            }
@@ -105,12 +107,11 @@ class Predictor:
         self.rnd_state = np.random.randint(
             1, 500) if rnd_state == 0 else rnd_state
         self.bayes_search_space = {
-            "max_depth": Integer(6, 20),  # values of max_depth are integers from 6 to 20
+            "max_depth": Integer(5, 100),
             "max_features": Categorical(['auto', 'sqrt', 'log2']),
             "min_samples_leaf": Integer(2, 10),
             "min_samples_split": Integer(2, 10),
-            "n_estimators": Integer(5, 20)
-        }
+            "n_estimators": Integer(5, 20)}
 
     def __get_model_type(self):
         """Define model_type by model from Class attributes."""
@@ -141,6 +142,71 @@ class Predictor:
             random_state=self.rnd_state,
             stratify=self.Y if self.Y_type == clf else None)
 
+    def __log(self, str: None):
+        """Print log info if 'debug' is on."""
+        if self.debug >= 1:
+            print('{:-^50}'.format("-"))
+            print('-=[ ' , str , ' ]=-')
+
+    def __define_model(self):
+        """Define model class to create."""
+        if self.model_type == tree:
+            if self.Y_type == clf:
+                model = DecisionTreeClassifier()
+                if not self.params:
+                    params = {**self.tree_clf_criterion, **self.tree_params}
+            elif self.Y_type == regr:
+                model = DecisionTreeRegressor()
+                if not self.params:
+                    params = {**self.tree_regr_criterion, **self.tree_params}
+
+        elif self.model_type == forest:
+            if self.Y_type == clf:
+                model = RandomForestClassifier()
+                if not self.params:
+                    params = {**self.tree_clf_criterion, **self.tree_params,
+                              **self.forest_params}
+            elif self.Y_type == regr:
+                model = RandomForestRegressor()
+                if not self.params:
+                    params = {**self.forest_regr_criterion, **self.tree_params,
+                              **self.forest_params}
+
+        elif self.model_type == ada:
+            if self.Y_type == clf:
+                model = AdaBoostClassifier()
+                if not self.params:
+                    params = {**self.ada_params}
+            elif self.Y_type == regr:
+                model = AdaBoostRegressor()
+                if not self.params:
+                    params = {**self.ada_regr_criterion, **self.ada_params}
+
+        elif self.model_type == extra:
+            if self.Y_type == clf:
+                model = ExtraTreesClassifier()
+                if not self.params:
+                    params = {**self.tree_clf_criterion, **self.tree_params,
+                              **self.forest_params}
+            elif self.Y_type == regr:
+                model = ExtraTreesRegressor()
+                if not self.params:
+                    params = {**self.extra_regr_criterion, **self.tree_params,
+                              **self.forest_params}
+
+        elif self.model_type == gbdt:
+            if self.Y_type == clf:
+                model = GradientBoostingClassifier()
+                if not self.params:
+                    params = {**self.gbdt_clf_criterion, **self.tree_params,
+                              **self.forest_params}
+            elif self.Y_type == regr:
+                model = GradientBoostingRegressor()
+                if not self.params:
+                    params = {**self.gbdt_regr_criterion, **self.tree_params,
+                              **self.forest_params}
+        return model, params
+
     def tree_search(self,
                     search_type=rand,
                     model_type=tree,
@@ -157,11 +223,16 @@ class Predictor:
 
         Parameters
         ----------
-        search_type : {"rand", "grid", "bayes_search"}, default "rand"
+        search_type : {"rand", "grid", "bayes_search", "optuna_search"}, default "rand"
             * if 'rand' use random search to tune hyperparameters.
             * if 'grid' use grid search to tune hyperparameters.
             * if 'bayes_search' use bayes optimization to tune hyperparameters
-              (ignore model_type, 'forest' model auto use)
+              as currently drafted, model_type and Y_type ignored,
+              uses random forest clf directly
+            * if 'optuna_search' use Optuna hyperparameter optimization framework
+              as currently drafted, model_type and Y_type ignored,
+              uses random forest clf directly,
+              https://optuna.org
 
         model_type : {"tree", "forest", "ada", "extra", "gbdt"}, default "tree"
             * if 'tree' train tree model.
@@ -183,71 +254,17 @@ class Predictor:
         -------
             Best trained model
         """
+        self.search_type = search_type
+        self.model_type = model_type
+        self.params = params
 
-        if self.debug >= 1:
-            start_timer = time.time()
-            print('{:-^50}'.format("-"))
-            print("-=[ ", model_type, " ", search_type, " ", self.Y_type,
-                  " start: ",
-                  time.strftime("%H:%M:%S", time.gmtime(start_timer)), " ]=-")
+        start_timer = time.time()
+        self.__log(model_type + " " + search_type + " " + self.Y_type)
+        self.__log(" start: " + time.strftime("%H:%M:%S", time.gmtime(start_timer)))
 
         X_train, x_test, y_train, y_test = self.__split()
 
-        if model_type == tree:
-            if self.Y_type == clf:
-                model = DecisionTreeClassifier()
-                if not params:
-                    params = {**self.tree_clf_criterion, **self.tree_params}
-            elif self.Y_type == regr:
-                model = DecisionTreeRegressor()
-                if not params:
-                    params = {**self.tree_regr_criterion, **self.tree_params}
-
-        elif model_type == forest:
-            if self.Y_type == clf:
-                model = RandomForestClassifier()
-                if not params:
-                    params = {**self.tree_clf_criterion, **self.tree_params,
-                              **self.forest_params}
-            elif self.Y_type == regr:
-                model = RandomForestRegressor()
-                if not params:
-                    params = {**self.forest_regr_criterion, **self.tree_params,
-                              **self.forest_params}
-
-        elif model_type == ada:
-            if self.Y_type == clf:
-                model = AdaBoostClassifier()
-                if not params:
-                    params = {**self.ada_params}
-            elif self.Y_type == regr:
-                model = AdaBoostRegressor()
-                if not params:
-                    params = {**self.ada_regr_criterion, **self.ada_params}
-
-        elif model_type == extra:
-            if self.Y_type == clf:
-                model = ExtraTreesClassifier()
-                if not params:
-                    params = {**self.tree_clf_criterion, **self.tree_params,
-                              **self.forest_params}
-            elif self.Y_type == regr:
-                model = ExtraTreesRegressor()
-                if not params:
-                    params = {**self.extra_regr_criterion, **self.tree_params,
-                              **self.forest_params}
-
-        elif model_type == gbdt:
-            if self.Y_type == clf:
-                model = GradientBoostingClassifier()
-                if not params:
-                    params = {**self.gbdt_clf_criterion, **self.tree_params,
-                              **self.forest_params}
-            elif self.Y_type == regr:
-                model = GradientBoostingRegressor()
-                if not params:
-                    params = {**self.gbdt_regr_criterion, **self.tree_params,
-                              **self.forest_params}
+        model, params = self.__define_model()
 
         if search_type == rand:
             tree_search = RandomizedSearchCV(model,
@@ -272,17 +289,70 @@ class Predictor:
                                         n_jobs=n_jobs,
                                         n_iter=random_n_iter)
 
-        if self.debug >= 1:
-            print("Class ", model.__class__.__name__)
+        elif search_type == optuna_search:
+            params = {**self.tree_clf_criterion, **self.tree_params,
+                      **self.forest_params}
+
+            def objective(trial):
+                n_estimators = trial.suggest_categorical('n_estimators', params['n_estimators'])
+                criterion = trial.suggest_categorical('criterion', params['criterion'])
+                max_depth = trial.suggest_int('max_depth', params['max_depth'].start,
+                                              params['max_depth'].stop)
+                min_samples_split = trial.suggest_int('min_samples_split', params['min_samples_split'].start,
+                                                      params['min_samples_split'].stop)
+                min_samples_leaf = trial.suggest_int('min_samples_leaf', params['min_samples_leaf'].start,
+                                                     params['min_samples_leaf'].stop)
+                max_features = trial.suggest_int('max_features', params['max_features'].start,
+                                                 params['max_features'].stop)
+                max_leaf_nodes = trial.suggest_int('max_leaf_nodes', params['max_leaf_nodes'].start,
+                                                   params['max_leaf_nodes'].stop)
+
+                model = RandomForestClassifier(n_estimators=n_estimators,
+                                               criterion=criterion,
+                                               max_depth=max_depth,
+                                               min_samples_split=min_samples_split,
+                                               min_samples_leaf=min_samples_leaf,
+                                               max_features=max_features,
+                                               max_leaf_nodes=max_leaf_nodes,
+                                               n_jobs=n_jobs,
+                                               verbose=self.debug)
+                model.fit(X_train, y_train.values.ravel())
+                return cross_val_score(model, X_train, y_train, cv=5).mean()
+
+            study = optuna.create_study(direction='maximize')
+            study.optimize(objective, n_trials=random_n_iter)
+
+            elapsed_time = time.time() - start_timer
+            self.__log('finished: ' + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+            self.__log(study.best_value)
+            self.__log(study.best_trial)
+
+            params = study.best_params
+            model = RandomForestClassifier(
+                n_estimators=params['n_estimators'],
+                criterion=params['criterion'],
+                max_depth=params['max_depth'],
+                min_samples_split=params['min_samples_split'],
+                min_samples_leaf=params['min_samples_leaf'],
+                max_features=params['max_features'],
+                max_leaf_nodes=params['max_leaf_nodes'],
+                n_jobs=n_jobs,
+                verbose=self.debug)
+            model.fit(X_train, y_train.values.ravel())
+            self.trained_model = model
+            self.__log("Class " + model.__class__.__name__)
+            self.__log('{:-^50}'.format("-"))
+
+            return model
+
+        self.__log("Class " + model.__class__.__name__)
 
         tree_search.fit(X_train, y_train.values.ravel())
         self.trained_model = tree_search.best_estimator_
 
-        if self.debug >= 1:
-            elapsed_time = time.time() - start_timer
-            print("-=[ finished: ",
-                  time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), "]=-")
-            print('{:-^50}'.format("-"))
+        elapsed_time = time.time() - start_timer
+        self.__log('finished: ' + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+        self.__log('{:-^50}'.format("-"))
 
         return tree_search.best_estimator_
 

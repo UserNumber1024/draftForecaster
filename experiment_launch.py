@@ -1,30 +1,47 @@
 from lib.predictors import Predictor
 from lib.preparer import MOEXtoXY
 import warnings
-
 warnings.filterwarnings("ignore")
-
+# -----------------------------------------------------------------------------
+# CONSTANTS--------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+tree = 'tree'
+extra = 'extra'
+forest = 'forest'
+gbdt = 'gbdt'
+ada = 'ada'
+---
+clf = 'clf'
+regr = 'regr'
+---
+rand = 'rand'
+grid = 'grid'
+bayes_search = 'bayes_search'
+optuna_search = 'optuna_search'
+---
+file = 'file'
+moex = 'moex'
+# -----------------------------------------------------------------------------
 # SETUP PARAMS OF EXPERIMENT HERE----------------------------------------------
 # -----------------------------------------------------------------------------
-Y_type = 'clf'
-model_type = 'tree'
-search_type = 'bayes_search'
-source = 'file'
+Y_type = clf
+model_type = tree
+search_type = optuna_search
+source = file
 length = 1
 profit_margin = 0.01
-debug = 2
+debug = 1
 n_jobs = 1
-random_n_iter = 20
-draw_xy = True
-draw_pca = True
-draw_tSNE = True
+random_n_iter = 5
+draw_xy = False
+draw_pca = False
+draw_tSNE = False
 train_model = True
-print_metrics = True
+print_metrics = False
 draw_metrics = True
 draw_model = False
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
 preparer = MOEXtoXY()
 X, Y, prices = preparer.prepare_XY(source=source,
                                    length=length,

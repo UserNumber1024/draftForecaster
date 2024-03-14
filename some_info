@@ -10,8 +10,7 @@ Imbalanced classification
 
 Predictor-
 -----------
-- optuna
-- https://habr.com/ru/companies/otus/articles/754402/
+- AutoSklearnClassifier
 - XGBOOST
 - can't draw a gradient boos yet
 - какие графики метрик для регресса можно нарисовать
