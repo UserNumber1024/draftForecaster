@@ -1,20 +1,24 @@
 ---------------------------------------------------------------------------------------------------------------------
 Formulator
----------------
-- добавить индикаторов
-- посмотреть корреляцию по периодам - добавить / исключить
-- добавить тикеров
-import mplfinance as mpf
-import talib
-Imbalanced classification
+1.
+Candlestick Pattern Recognition Indicators:
+* https://entreprenerdly.com/automating-61-candlestick-trading-patterns-in-python/
+* https://github.com/GaneshJainarain/Candlestick-Pattern-Recognition-with-Python-and-TA-Lib?tab=readme-ov-file
+* experiment bitmask vs N single patterns (what about correlations)
 
+2.убрать сильно коррелированные индикаторы
+profit algo
+https://tradingstrategy.ai/docs/programming/market-data/profitability.html
+--------------------------------------------------
+Imbalanced classification !!!
+--------------------------------------------------
 Predictor-
------------
-- AutoSklearnClassifier
+- AutoSklearnClassifier - unix only (or WSL)
 - XGBOOST
-- can't draw a gradient boos yet
+- can't draw a gradient boost
 - какие графики метрик для регресса можно нарисовать
-
+https://syedluqman.com/machine-learning/top-5-auto-ml-auto-machine-learning-libraries-for-python/
+https://www.activestate.com/blog/the-top-10-automl-python-packages-to-automate-your-machine-learning-tasks/
 --------------------------------------------------
 CONSTANT USEFUL LINKS
 https://www.kaggle.com/

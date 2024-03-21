@@ -1,8 +1,8 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 import optuna
+import pandas as pd
 from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
                               AdaBoostClassifier, AdaBoostRegressor,
                               ExtraTreesClassifier, ExtraTreesRegressor,
@@ -16,12 +16,12 @@ from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                              classification_report,
                              plot_roc_curve, plot_precision_recall_curve,
                              plot_confusion_matrix)
-from sklearn.tree import (DecisionTreeClassifier,
-                          DecisionTreeRegressor, plot_tree)
 from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
                                      train_test_split, cross_val_score)
+from sklearn.tree import (DecisionTreeClassifier,
+                          DecisionTreeRegressor, plot_tree)
 from skopt import BayesSearchCV
-from skopt.space import Integer, Real, Categorical
+from skopt.space import Integer, Categorical
 
 # CONSTANTS--------------------------------------------------------------------
 tree = 'tree'
@@ -142,11 +142,11 @@ class Predictor:
             random_state=self.rnd_state,
             stratify=self.Y if self.Y_type == clf else None)
 
-    def __log(self, str: None):
+    def __log(self, text: None):
         """Print log info if 'debug' is on."""
         if self.debug >= 1:
             print('{:-^50}'.format("-"))
-            print('-=[ ' , str , ' ]=-')
+            print('-=[ ', text, ' ]=-')
 
     def __define_model(self):
         """Define model class to create."""
@@ -307,7 +307,7 @@ class Predictor:
                 max_leaf_nodes = trial.suggest_int('max_leaf_nodes', params['max_leaf_nodes'].start,
                                                    params['max_leaf_nodes'].stop)
 
-                model = RandomForestClassifier(n_estimators=n_estimators,
+                search_model = RandomForestClassifier(n_estimators=n_estimators,
                                                criterion=criterion,
                                                max_depth=max_depth,
                                                min_samples_split=min_samples_split,
@@ -316,7 +316,7 @@ class Predictor:
                                                max_leaf_nodes=max_leaf_nodes,
                                                n_jobs=n_jobs,
                                                verbose=self.debug)
-                model.fit(X_train, y_train.values.ravel())
+                search_model.fit(X_train, y_train.values.ravel())
                 return cross_val_score(model, X_train, y_train, cv=5).mean()
 
             study = optuna.create_study(direction='maximize')
@@ -411,7 +411,7 @@ class Predictor:
         Does not make sense on real models.
 
         w,h: int, size of figure
-            calculated inside by a simlified rule
+            calculated inside by a simplified rule
         """
         model = self.trained_model
         model_type = self.__get_model_type()
