@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pandas_ta as pta
 import seaborn as sns
+import talib
 from sklearn import decomposition
 from sklearn.manifold import TSNE
 from lib.connector import MOEXAdapter
@@ -13,10 +14,12 @@ clf = 'clf'
 regr = 'regr'
 file = 'file'
 moex = 'moex'
+calc = 'calc'
 # n - days for normalization by mean
 n = 60
 up_quant = 0.95
 low_quant = 0.05
+
 
 # -----------------------------------------------------------------------------
 
@@ -132,7 +135,71 @@ class MOEXtoXY:
                 'close2openInc',
                 'high2openInc',
                 'low2openInc',
-                'dayOfWeek']
+                'dayOfWeek',
+                'cdl_patterns']
+        self.cdl_patterns = [
+            ('CDL2CROWS', talib.CDL2CROWS),
+            ('CDL3BLACKCROWS', talib.CDL3BLACKCROWS),
+            ('CDL3INSIDE', talib.CDL3INSIDE),
+            ('CDL3LINESTRIKE', talib.CDL3LINESTRIKE),
+            ('CDL3OUTSIDE', talib.CDL3OUTSIDE),
+            ('CDL3STARSINSOUTH', talib.CDL3STARSINSOUTH),
+            ('CDL3WHITESOLDIERS', talib.CDL3WHITESOLDIERS),
+            ('CDLABANDONEDBABY', talib.CDLABANDONEDBABY),
+            ('CDLADVANCEBLOCK', talib.CDLADVANCEBLOCK),
+            ('CDLBELTHOLD', talib.CDLBELTHOLD),
+            ('CDLBREAKAWAY', talib.CDLBREAKAWAY),
+            ('CDLCLOSINGMARUBOZU', talib.CDLCLOSINGMARUBOZU),
+            ('CDLCONCEALBABYSWALL', talib.CDLCONCEALBABYSWALL),
+            ('CDLCOUNTERATTACK', talib.CDLCOUNTERATTACK),
+            ('CDLDARKCLOUDCOVER', talib.CDLDARKCLOUDCOVER),
+            ('CDLDOJI', talib.CDLDOJI),
+            ('CDLDOJISTAR', talib.CDLDOJISTAR),
+            ('CDLDRAGONFLYDOJI', talib.CDLDRAGONFLYDOJI),
+            ('CDLENGULFING', talib.CDLENGULFING),
+            ('CDLEVENINGDOJISTAR', talib.CDLEVENINGDOJISTAR),
+            ('CDLEVENINGSTAR', talib.CDLEVENINGSTAR),
+            ('CDLGAPSIDESIDEWHITE', talib.CDLGAPSIDESIDEWHITE),
+            ('CDLGRAVESTONEDOJI', talib.CDLGRAVESTONEDOJI),
+            ('CDLHAMMER', talib.CDLHAMMER),
+            ('CDLHANGINGMAN', talib.CDLHANGINGMAN),
+            ('CDLHARAMI', talib.CDLHARAMI),
+            ('CDLHARAMICROSS', talib.CDLHARAMICROSS),
+            ('CDLHIGHWAVE', talib.CDLHIGHWAVE),
+            ('CDLHIKKAKE', talib.CDLHIKKAKE),
+            ('CDLHIKKAKEMOD', talib.CDLHIKKAKEMOD),
+            ('CDLHOMINGPIGEON', talib.CDLHOMINGPIGEON),
+            ('CDLIDENTICAL3CROWS', talib.CDLIDENTICAL3CROWS),
+            ('CDLINNECK', talib.CDLINNECK),
+            ('CDLINVERTEDHAMMER', talib.CDLINVERTEDHAMMER),
+            ('CDLKICKING', talib.CDLKICKING),
+            ('CDLKICKINGBYLENGTH', talib.CDLKICKINGBYLENGTH),
+            ('CDLLADDERBOTTOM', talib.CDLLADDERBOTTOM),
+            ('CDLLONGLEGGEDDOJI', talib.CDLLONGLEGGEDDOJI),
+            ('CDLLONGLINE', talib.CDLLONGLINE),
+            ('CDLMARUBOZU', talib.CDLMARUBOZU),
+            ('CDLMATCHINGLOW', talib.CDLMATCHINGLOW),
+            ('CDLMATHOLD', talib.CDLMATHOLD),
+            ('CDLMORNINGDOJISTAR', talib.CDLMORNINGDOJISTAR),
+            ('CDLMORNINGSTAR', talib.CDLMORNINGSTAR),
+            ('CDLONNECK', talib.CDLONNECK),
+            ('CDLPIERCING', talib.CDLPIERCING),
+            ('CDLRICKSHAWMAN', talib.CDLRICKSHAWMAN),
+            ('CDLRISEFALL3METHODS', talib.CDLRISEFALL3METHODS),
+            ('CDLSEPARATINGLINES', talib.CDLSEPARATINGLINES),
+            ('CDLSHOOTINGSTAR', talib.CDLSHOOTINGSTAR),
+            ('CDLSHORTLINE', talib.CDLSHORTLINE),
+            ('CDLSPINNINGTOP', talib.CDLSPINNINGTOP),
+            ('CDLSTALLEDPATTERN', talib.CDLSTALLEDPATTERN),
+            ('CDLSTICKSANDWICH', talib.CDLSTICKSANDWICH),
+            ('CDLTAKURI', talib.CDLTAKURI),
+            ('CDLTASUKIGAP', talib.CDLTASUKIGAP),
+            ('CDLTHRUSTING', talib.CDLTHRUSTING),
+            ('CDLTRISTAR', talib.CDLTRISTAR),
+            ('CDLUNIQUE3RIVER', talib.CDLUNIQUE3RIVER),
+            ('CDLUPSIDEGAP2CROWS', talib.CDLUPSIDEGAP2CROWS),
+            ('CDLXSIDEGAP3METHODS', talib.CDLXSIDEGAP3METHODS)]
+
         self.length = None
         self.Y_type = None
         self.X = None
@@ -142,10 +209,12 @@ class MOEXtoXY:
                    tickers=None,
                    start="2015-01-01",
                    end="2023-12-31",
-                   store2file=True,
+                   store_tickers2file=True,
+                   store_XY2file=True,
                    file_folder='data/',
                    file_postfix='_full_hist.csv',
-                   source=file,
+                   source_tickers=file,
+                   source_XY=calc,
                    length=1,
                    profit_margin=0.01,
                    Y_type=clf
@@ -155,8 +224,9 @@ class MOEXtoXY:
         The source data can be extracted from files (from previos run`s)
         or obtained from MOEX (with the possibility of saving to a file).
 
-        For forecasting, it is better to request data for about a month
-        due to specific trading indicators calculation. (set store2file=False)
+        For forecasting, request data for about a 3 month
+        due to specific trading indicators calculation.
+        (while forecasting, set store_tickers2file=False)
 
         X and Y keeped as class attributes (it's expensive, but whatever)
 
@@ -167,18 +237,26 @@ class MOEXtoXY:
             if empty, used default list of supprted tickers (moex_ticker_ids)
 
         start, end: str, period in "YYYY-MM-DD" format
-            default 2015..2023 (not used when source=file)
+            default 2015..2023 (not used when source_tickers=file)
 
-        store2file: Boolean, default True
+        store_tickers2file: Boolean, default True
             define, whether the "raw" trading data should be saved to a file
+
+        store_XY2file:Boolean, default True
+            define, whether prepared X and Y should be saved to a file
 
         file_folder, file_postfix: str
             file attributes for saving/retrieving trade data
 
-        source: {'file', 'moex'}, default 'file', defines the method
+        source_tickers: {'file', 'moex'}, default 'file', defines the method
         of obtaining trade data
             * from the 'moex' (MOEX API)
             * or from a 'file' (from a previous run)
+
+        source_XY: {'file', 'calc'}, default 'calc', defines the method
+        of preparing X and Y
+            * 'calc' calculate due params
+            * 'file' read from previos preparings
 
         length: int, default 1
             is used to calculate Y (profit),
@@ -198,6 +276,14 @@ class MOEXtoXY:
         Also return prices - OHLCV from MOEX enriched with X and Y.
 
         """
+        if source_XY == file:
+            X = pd.read_csv(file_folder + 'X.csv', index_col=0)
+            Y = pd.read_csv(file_folder + 'Y.csv', index_col=0)
+            self.X = X
+            self.Y = Y
+            prices = pd.read_csv(file_folder + 'prices.csv', index_col=0)
+            return X, Y, prices
+
         if not tickers:
             tickers = list(self.moex_ticker_ids.keys())
         X = pd.DataFrame()
@@ -206,32 +292,34 @@ class MOEXtoXY:
         self.length = length
         self.profit_margin = profit_margin
         self.Y_type = Y_type
-        if source == moex:
+        if source_tickers == moex:
             iss = MOEXAdapter()
 
         for ticker in tickers:
             filename = file_folder + ticker + file_postfix
-            if source == moex:
+            if source_tickers == moex:
                 ticker_data = iss.get_ticker_history(
                     ticker, start, end).reset_index(drop=True)
-                if store2file:
+                if store_tickers2file:
                     ticker_data.to_csv(filename)
-            elif source == file:
+            elif source_tickers == file:
                 ticker_data = pd.read_csv(filename)
 
-            x_ticker, y_ticker, prices_ticker = self.__calc_TA_profit(
-                ticker, ticker_data)
+            x_ticker, y_ticker, prices_tck = self.__calc_TA_profit(ticker_data)
             X = pd.concat([X, x_ticker])
             Y = pd.concat([Y, y_ticker])
-            prices = pd.concat([prices, prices_ticker])
+            prices = pd.concat([prices, prices_tck])
             X.reset_index(drop=True, inplace=True)
             Y.reset_index(drop=True, inplace=True)
             prices.reset_index(drop=True, inplace=True)
 
         self.X = X
         self.Y = Y
-        if self.debug > 0:
-            prices.to_csv('data/prices_dump.csv')
+        if store_XY2file:
+            X.to_csv(file_folder + 'X.csv')
+            Y.to_csv(file_folder + 'Y.csv')
+            prices.to_csv(file_folder + 'prices.csv')
+
         return X, Y, prices
 
     def __get_OHLCV(self, moex_data):
@@ -243,16 +331,13 @@ class MOEXtoXY:
                           'High', 'Close', 'Volume', 'Numtrades', 'Ticker']
         return prices
 
-    def __calc_TA_profit(self, ticker: str, moex_ticker_data: pd.DataFrame):
+    def __calc_TA_profit(self, moex_ticker_data: pd.DataFrame):
         """Generate indicators for model training and forecasting.
 
         length and Y_type retrieved from class attributes.
 
         Parameters
         ----------
-        ticker: str
-            MOEX ticker in upcase, e.g. "SBER" (see getMoex_ticker_ids),
-
         moex_ticker_data
             MOEX API-response in pd.DataFrame form,
 
@@ -265,14 +350,17 @@ class MOEXtoXY:
         Useful links
         ------------
         https://tradingstrategy.ai/docs/api/technical-analysis/index.html
+        https://ta-lib.github.io/ta-lib-python/doc_index.html
         """
         prices = self.__get_OHLCV(moex_ticker_data)
 
         # remove rows with OPEN=0
         # cause it looks like there was no trading that day
         prices = prices[prices.Open > 0]
+        prices = prices[prices.Volume > 0]
 
         X = pd.DataFrame()
+        Y = pd.DataFrame()
 
         # Split HLOС into pd.Series just for ease of use
         H = prices['High']
@@ -292,7 +380,7 @@ class MOEXtoXY:
                 T.name = 'TickerId'
                 X = pd.concat([X, pd.DataFrame(T)])
 
-            # MACD normalized by the n-day MACD
+            # MACD normalized by the n-day mean price (HLC)
             elif i == 'macd12_26_9':
                 macd = pta.macd(close=C, fast=12, slow=26, signal=9)
                 mean = pta.hlc3(H, L, C)
@@ -303,8 +391,8 @@ class MOEXtoXY:
                 macds = macd.iloc[:, 2]
                 macds = macds / mean.rolling(window=n).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
-                               pd.Series(macdh, name=i+'hist'),
-                               pd.Series(macds, name=i+'sig')], axis=1)
+                               pd.Series(macdh, name=i + 'hist'),
+                               pd.Series(macds, name=i + 'sig')], axis=1)
             elif i == 'macd10_14_5':
                 macd = pta.macd(close=C, fast=10, slow=14, signal=5)
                 mean = pta.hlc3(H, L, C)
@@ -315,8 +403,8 @@ class MOEXtoXY:
                 macds = macd.iloc[:, 2]
                 macds = macds / mean.rolling(window=n).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
-                               pd.Series(macdh, name=i+'hist'),
-                               pd.Series(macds, name=i+'sig')], axis=1)
+                               pd.Series(macdh, name=i + 'hist'),
+                               pd.Series(macds, name=i + 'sig')], axis=1)
 
             elif i == 'rsi3':
                 X = pd.concat([X, pta.rsi(close=C, length=3) / 100], axis=1)
@@ -363,16 +451,15 @@ class MOEXtoXY:
                 dmplus = (dm.iloc[:, 0] / 100)
                 dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
                 dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmplus.clip(upper=dmplus.quantile(up_quant))
+                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
-                # X = pd.concat([X, pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm5':
                 dm = pta.dm(high=H, low=L, length=5)
                 dmplus = (dm.iloc[:, 0] / 100)
                 dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
                 dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmplus.clip(upper=dmplus.quantile(up_quant))
+                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm14':
@@ -380,7 +467,7 @@ class MOEXtoXY:
                 dmplus = (dm.iloc[:, 0] / 100)
                 dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
                 dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmplus.clip(upper=dmplus.quantile(up_quant))
+                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm21':
@@ -388,7 +475,7 @@ class MOEXtoXY:
                 dmplus = (dm.iloc[:, 0] / 100)
                 dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
                 dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmplus.clip(upper=dmplus.quantile(up_quant))
+                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
 
@@ -796,6 +883,11 @@ class MOEXtoXY:
                 X = pd.concat(
                     [X, pd.Series(Date.dt.dayofweek / 10, name='DoW')], axis=1)
 
+            elif i == 'cdl_patterns':
+                for patt, fnc in self.cdl_patterns:
+                    cdl = pd.Series(fnc(Op, H, L, C)/100, name='cdl_' + patt)
+                    X = pd.concat([X, cdl], axis=1)
+
         # Y - profit
         # if buy now, will be there an average profit after N days?
         # assume, that for classification, the profit should be
@@ -808,10 +900,11 @@ class MOEXtoXY:
         profit = pd.Series(((mean_forecast - mean) / mean), name='profitInc')
 
         if self.Y_type == clf:
-            Y = pd.Series((profit >= self.profit_margin),
-                          name='profit').astype(int)
+            Y = pd.concat([Y, pd.Series((profit >= self.profit_margin),
+                          name='profit').astype(int)], axis=1)
         elif self.Y_type == regr:
-            Y = pd.Series(profit, name='profit')
+            Y = pd.concat([Y, pd.Series((profit), name='profit')], axis=1)
+            pd.Series(profit, name='profit')
 
         prices = pd.concat([prices, X, profit, Y, mean],
                            axis=1).reindex(prices.index)
@@ -822,9 +915,9 @@ class MOEXtoXY:
         prices.drop(prices.tail(self.length).index, inplace=True)
 
         # drop some first record, because MACD, ADOSC etc. not valid there
-        X.drop(X.head(n+26).index, inplace=True)
-        Y.drop(Y.head(n+26).index, inplace=True)
-        prices.drop(prices.head(n+26).index, inplace=True)
+        X.drop(X.head(n + 26).index, inplace=True)
+        Y.drop(Y.head(n + 26).index, inplace=True)
+        prices.drop(prices.head(n + 26).index, inplace=True)
 
         prices = prices.fillna(-1000).replace(np.inf, -1000)
         X = X.fillna(-1000).replace(np.inf, -1000)
@@ -845,18 +938,19 @@ class MOEXtoXY:
         plt.tight_layout()
         fig_hist.savefig("graph/x_hist.png")
 
-        fig_box = plt.figure(figsize=(100, 100))
+        fig_box = plt.figure(figsize=(150, 150))
         sns.boxplot(data=self.X, palette="Set1", showmeans=True, orient='w')
         plt.grid(True)
         plt.xticks(rotation='vertical')
         fig_box.savefig("graph/x_box.png")
 
-        fig_heat = plt.figure(figsize=(100, 100), dpi=80)
-        sns.heatmap(self.X.corr(), cmap='RdYlGn', annot=False)
+        fig_heat = plt.figure(figsize=(150, 150), dpi=80)
+        sns.heatmap(self.X.corr(), cmap='RdYlGn', annot=False, linewidths=1,
+                    linecolor='white')
         fig_heat.savefig("graph/x_heatmap.png")
 
         fig_Y = plt.figure(figsize=(10, 10))
-        sns.histplot(data=self.Y[0])
+        sns.histplot(data=self.Y['profit'])
         fig_Y.savefig("graph/y_hist.png")
 
     def draw_PCA(self, reduce_to_95=True, draw_expl=True,

@@ -1,12 +1,7 @@
 ---------------------------------------------------------------------------------------------------------------------
-Formulator
-1.
-Candlestick Pattern Recognition Indicators:
-* https://entreprenerdly.com/automating-61-candlestick-trading-patterns-in-python/
-* https://github.com/GaneshJainarain/Candlestick-Pattern-Recognition-with-Python-and-TA-Lib?tab=readme-ov-file
-* experiment bitmask vs N single patterns (what about correlations)
+Preparer
 
-2.убрать сильно коррелированные индикаторы
+убрать сильно коррелированные индикаторы
 profit algo
 https://tradingstrategy.ai/docs/programming/market-data/profitability.html
 --------------------------------------------------
