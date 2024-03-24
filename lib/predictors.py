@@ -22,21 +22,8 @@ from sklearn.tree import (DecisionTreeClassifier,
                           DecisionTreeRegressor, plot_tree)
 from skopt import BayesSearchCV
 from skopt.space import Integer, Categorical
-
-# CONSTANTS--------------------------------------------------------------------
-tree = 'tree'
-extra = 'extra'
-forest = 'forest'
-gbdt = 'gbdt'
-ada = 'ada'
-clf = 'clf'
-regr = 'regr'
-rand = 'rand'
-grid = 'grid'
-bayes_search = 'bayes_search'
-optuna_search = 'optuna_search'
-
-
+import lib.constants as c
+from typing import Any
 # -----------------------------------------------------------------------------
 
 
@@ -81,19 +68,16 @@ class Predictor:
         self.tree_clf_criterion = {'criterion': ['gini', 'entropy']}
         self.tree_regr_criterion = {'criterion': [
             "squared_error", "friedman_mse", "absolute_error", "poisson"]}
-        self.tree_params = {'max_depth': range(5, 100),
-                            'max_features': range(4, 60),
-                            'min_samples_split': range(2, 10),
-                            'min_samples_leaf': range(2, 10),
+        self.tree_params = {'max_depth': range(10, 150),
+                            'max_features': range(10, 100),
+                            'min_samples_split': range(5, 20),
+                            'min_samples_leaf': range(5, 20),
                             'max_leaf_nodes': range(10, 400)}
-        self.forest_params = {'n_estimators': [10, 7, 5, 3, 12, 20, 15]  # 20, 50, 100, 150],
-                              }
+        self.forest_params = {'n_estimators': [10, 15, 20, 30, 50, 70, 100, 120, 150]}
         self.forest_regr_criterion = {'criterion': [
             "squared_error", "absolute_error", "poisson"]}
-        self.ada_params = {'n_estimators': [10, 7, 5, 3, 12, 20, 15],
-                           # 'n_estimators': [10, 5, 20, 50, 100, 150, 200],
-                           "learning_rate": [0.1, 0.01, 0.2, 0.05, 0.5, 1]
-                           }
+        self.ada_params = {'n_estimators': [10, 15, 20, 30, 50, 70, 100, 120, 150],
+                           "learning_rate": [0.1, 0.01, 0.2, 0.05, 0.3, 0.5, 0.7, 1]}
         self.ada_regr_criterion = {'loss': ['linear', 'square', 'exponential']}
         self.extra_regr_criterion = {
             'criterion': ["squared_error", "absolute_error"]}
@@ -109,9 +93,9 @@ class Predictor:
         self.bayes_search_space = {
             "max_depth": Integer(5, 100),
             "max_features": Categorical(['auto', 'sqrt', 'log2']),
-            "min_samples_leaf": Integer(2, 10),
-            "min_samples_split": Integer(2, 10),
-            "n_estimators": Integer(5, 20)}
+            "min_samples_leaf": Integer(5, 20),
+            "min_samples_split": Integer(5, 20),
+            "n_estimators": Integer(10, 150)}
 
     def __get_model_type(self):
         """Define model_type by model from Class attributes."""
@@ -124,15 +108,15 @@ class Predictor:
         gbdt_list = ['GradientBoostingClassifier', 'GradientBoostingRegressor']
 
         if model.__class__.__name__ in tree_list:
-            return tree
+            return c.tree
         elif model.__class__.__name__ in forest_list:
-            return forest
+            return c.forest
         elif model.__class__.__name__ in ada_list:
-            return ada
+            return c.ada
         elif model.__class__.__name__ in extra_list:
-            return extra
+            return c.extra
         elif model.__class__.__name__ in gbdt_list:
-            return gbdt
+            return c.gbdt
 
     def __split(self):
         """Split dataset and target to train/test sets."""
@@ -140,9 +124,9 @@ class Predictor:
             self.X, self.Y,
             test_size=self.seed,
             random_state=self.rnd_state,
-            stratify=self.Y if self.Y_type == clf else None)
+            stratify=self.Y if self.Y_type == c.clf else None)
 
-    def __log(self, text: None):
+    def __log(self, text: Any):
         """Print log info if 'debug' is on."""
         if self.debug >= 1:
             print('{:-^50}'.format("-"))
@@ -150,57 +134,57 @@ class Predictor:
 
     def __define_model(self):
         """Define model class to create."""
-        if self.model_type == tree:
-            if self.Y_type == clf:
+        if self.model_type == c.tree:
+            if self.Y_type == c.clf:
                 model = DecisionTreeClassifier()
                 if not self.params:
                     params = {**self.tree_clf_criterion, **self.tree_params}
-            elif self.Y_type == regr:
+            elif self.Y_type == c.regr:
                 model = DecisionTreeRegressor()
                 if not self.params:
                     params = {**self.tree_regr_criterion, **self.tree_params}
 
-        elif self.model_type == forest:
-            if self.Y_type == clf:
+        elif self.model_type == c.forest:
+            if self.Y_type == c.clf:
                 model = RandomForestClassifier()
                 if not self.params:
                     params = {**self.tree_clf_criterion, **self.tree_params,
                               **self.forest_params}
-            elif self.Y_type == regr:
+            elif self.Y_type == c.regr:
                 model = RandomForestRegressor()
                 if not self.params:
                     params = {**self.forest_regr_criterion, **self.tree_params,
                               **self.forest_params}
 
-        elif self.model_type == ada:
-            if self.Y_type == clf:
+        elif self.model_type == c.ada:
+            if self.Y_type == c.clf:
                 model = AdaBoostClassifier()
                 if not self.params:
                     params = {**self.ada_params}
-            elif self.Y_type == regr:
+            elif self.Y_type == c.regr:
                 model = AdaBoostRegressor()
                 if not self.params:
                     params = {**self.ada_regr_criterion, **self.ada_params}
 
-        elif self.model_type == extra:
-            if self.Y_type == clf:
+        elif self.model_type == c.extra:
+            if self.Y_type == c.clf:
                 model = ExtraTreesClassifier()
                 if not self.params:
                     params = {**self.tree_clf_criterion, **self.tree_params,
                               **self.forest_params}
-            elif self.Y_type == regr:
+            elif self.Y_type == c.regr:
                 model = ExtraTreesRegressor()
                 if not self.params:
                     params = {**self.extra_regr_criterion, **self.tree_params,
                               **self.forest_params}
 
-        elif self.model_type == gbdt:
-            if self.Y_type == clf:
+        elif self.model_type == c.gbdt:
+            if self.Y_type == c.clf:
                 model = GradientBoostingClassifier()
                 if not self.params:
                     params = {**self.gbdt_clf_criterion, **self.tree_params,
                               **self.forest_params}
-            elif self.Y_type == regr:
+            elif self.Y_type == c.regr:
                 model = GradientBoostingRegressor()
                 if not self.params:
                     params = {**self.gbdt_regr_criterion, **self.tree_params,
@@ -208,8 +192,8 @@ class Predictor:
         return model, params
 
     def tree_search(self,
-                    search_type=rand,
-                    model_type=tree,
+                    search_type=c.rand,
+                    model_type=c.tree,
                     n_jobs=1,
                     random_n_iter=10,
                     params=None
@@ -266,21 +250,21 @@ class Predictor:
 
         model, params = self.__define_model()
 
-        if search_type == rand:
+        if search_type == c.rand:
             tree_search = RandomizedSearchCV(model,
                                              param_distributions=params,
                                              n_iter=random_n_iter,
                                              cv=5,
                                              verbose=self.debug,
                                              n_jobs=n_jobs)
-        elif search_type == grid:
+        elif search_type == c.grid:
             tree_search = GridSearchCV(model,
                                        param_grid=params,
                                        cv=5,
                                        verbose=self.debug,
                                        n_jobs=n_jobs)
 
-        elif search_type == bayes_search:
+        elif search_type == c.bayes_search:
             model = RandomForestClassifier()
             tree_search = BayesSearchCV(model,
                                         search_spaces=self.bayes_search_space,
@@ -289,7 +273,7 @@ class Predictor:
                                         n_jobs=n_jobs,
                                         n_iter=random_n_iter)
 
-        elif search_type == optuna_search:
+        elif search_type == c.optuna_search:
             params = {**self.tree_clf_criterion, **self.tree_params,
                       **self.forest_params}
 
@@ -364,7 +348,7 @@ class Predictor:
 
         """
 
-        def prnt(col1='', col2=''):
+        def prnt(col1: Any, col2: Any):
             # simple table-like print out
             print('{: <35}'.format(col1), '|', col2)
             print('{:-^50}'.format("-"))
@@ -378,7 +362,7 @@ class Predictor:
         print("Params:", model.get_params())
         print('{:-^50}'.format("-"))
 
-        if self.Y_type == clf:
+        if self.Y_type == c.clf:
             # y_pred_proba = model.predict_proba(x_test)
             prnt("Accuracy", accuracy_score(y_test, y_pred))
             prnt("Precision", precision_score(y_test, y_pred))
@@ -392,7 +376,7 @@ class Predictor:
             prnt("AvgCV Score", cv_scores.mean())
             print(classification_report(y_test, y_pred))
 
-        elif self.Y_type == regr:
+        elif self.Y_type == c.regr:
             prnt("Score", model.score(self.X, self.Y))
             prnt("R squared", r2_score(y_test, y_pred))
             prnt("Mean absolute error", mean_absolute_error(y_test,
@@ -418,7 +402,7 @@ class Predictor:
 
         X_train, x_test, y_train, y_test = self.__split()
 
-        if model_type == tree:
+        if model_type == c.tree:
             depth = model.get_params()['max_depth']
             leafes = model.get_params()['max_leaf_nodes']
             feats = model.get_params()['max_features']
@@ -434,11 +418,11 @@ class Predictor:
                       filled=True, ax=ax, fontsize=8)
             fig.savefig("graph/model_tree.png")
 
-        elif model_type in [forest, ada, extra]:
-            if model_type in [forest, extra]:
+        elif model_type in [c.forest, c.ada, c.extra]:
+            if model_type in [c.forest, c.extra]:
                 h = 50 if h == 0 else h
                 w = 50 if w == 0 else w
-            elif model_type == ada:
+            elif model_type == c.ada:
                 h = 20 if h == 0 else h
                 w = 20 if w == 0 else w
             fig, ax = plt.subplots(nrows=model.get_params()['n_estimators'],
@@ -469,7 +453,7 @@ class Predictor:
                    np.array(x_test.columns)[sorted_idx])
         fig_importance.savefig("graph/feat_importance.png")
         # ----------------------------
-        if self.Y_type == clf:
+        if self.Y_type == c.clf:
             y_pred_proba = model.predict_proba(x_test)
             fig, axes = plt.subplots(nrows=1, figsize=(6, 6))
             plt.title("PREDICT_PROBABILITY")
@@ -501,5 +485,5 @@ class Predictor:
             fig.tight_layout()
             fig.savefig("graph/feat_confusion.png")
 
-        elif self.Y_type == regr:
+        elif self.Y_type == c.regr:
             pass

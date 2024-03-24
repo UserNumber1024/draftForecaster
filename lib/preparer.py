@@ -8,19 +8,7 @@ import talib
 from sklearn import decomposition
 from sklearn.manifold import TSNE
 from lib.connector import MOEXAdapter
-
-# CONSTANTS--------------------------------------------------------------------
-clf = 'clf'
-regr = 'regr'
-file = 'file'
-moex = 'moex'
-calc = 'calc'
-# n - days for normalization by mean
-n = 60
-up_quant = 0.95
-low_quant = 0.05
-
-
+import lib.constants as c
 # -----------------------------------------------------------------------------
 
 
@@ -43,15 +31,15 @@ class MOEXtoXY:
         if not moex_ticker_ids == {}:
             self.moex_ticker_ids = {'SBER': 0.01,
                                     'GAZP': 0.02,
-                                    # 'LKOH': 0.03,
-                                    # 'SIBN': 0.04,
-                                    # 'POSI': 0.05,
-                                    # 'IRAO': 0.06,
-                                    # 'PHOR': 0.07,
-                                    # 'YNDX': 0.08,
-                                    # 'AFLT': 0.11,
-                                    # 'POLY': 0.12,
-                                    # 'MTSS': 0.13,
+                                    'LKOH': 0.03,
+                                    'SIBN': 0.04,
+                                    'POSI': 0.05,
+                                    'IRAO': 0.06,
+                                    'PHOR': 0.07,
+                                    'YNDX': 0.08,
+                                    'AFLT': 0.11,
+                                    'POLY': 0.12,
+                                    'MTSS': 0.13,
                                     'PLZL': 0.14
                                     }
         if not ta_indicators:
@@ -213,11 +201,11 @@ class MOEXtoXY:
                    store_XY2file=True,
                    file_folder='data/',
                    file_postfix='_full_hist.csv',
-                   source_tickers=file,
-                   source_XY=calc,
+                   source_tickers=c.file,
+                   source_XY=c.calc,
                    length=1,
                    profit_margin=0.01,
-                   Y_type=clf
+                   Y_type=c.clf
                    ):
         """Prepare X and Y for analysis and forecasting.
 
@@ -276,7 +264,7 @@ class MOEXtoXY:
         Also return prices - OHLCV from MOEX enriched with X and Y.
 
         """
-        if source_XY == file:
+        if source_XY == c.file:
             X = pd.read_csv(file_folder + 'X.csv', index_col=0)
             Y = pd.read_csv(file_folder + 'Y.csv', index_col=0)
             self.X = X
@@ -292,17 +280,17 @@ class MOEXtoXY:
         self.length = length
         self.profit_margin = profit_margin
         self.Y_type = Y_type
-        if source_tickers == moex:
+        if source_tickers == c.moex:
             iss = MOEXAdapter()
 
         for ticker in tickers:
             filename = file_folder + ticker + file_postfix
-            if source_tickers == moex:
+            if source_tickers == c.moex:
                 ticker_data = iss.get_ticker_history(
                     ticker, start, end).reset_index(drop=True)
                 if store_tickers2file:
                     ticker_data.to_csv(filename)
-            elif source_tickers == file:
+            elif source_tickers == c.file:
                 ticker_data = pd.read_csv(filename)
 
             x_ticker, y_ticker, prices_tck = self.__calc_TA_profit(ticker_data)
@@ -385,11 +373,11 @@ class MOEXtoXY:
                 macd = pta.macd(close=C, fast=12, slow=26, signal=9)
                 mean = pta.hlc3(H, L, C)
                 macdm = macd.iloc[:, 0]
-                macdm = macdm / mean.rolling(window=n).mean()
+                macdm = macdm / mean.rolling(window=c.n).mean()
                 macdh = macd.iloc[:, 1]
-                macdh = macdh / mean.rolling(window=n).mean()
+                macdh = macdh / mean.rolling(window=c.n).mean()
                 macds = macd.iloc[:, 2]
-                macds = macds / mean.rolling(window=n).mean()
+                macds = macds / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
                                pd.Series(macdh, name=i + 'hist'),
                                pd.Series(macds, name=i + 'sig')], axis=1)
@@ -397,11 +385,11 @@ class MOEXtoXY:
                 macd = pta.macd(close=C, fast=10, slow=14, signal=5)
                 mean = pta.hlc3(H, L, C)
                 macdm = macd.iloc[:, 0]
-                macdm = macdm / mean.rolling(window=n).mean()
+                macdm = macdm / mean.rolling(window=c.n).mean()
                 macdh = macd.iloc[:, 1]
-                macdh = macdh / mean.rolling(window=n).mean()
+                macdh = macdh / mean.rolling(window=c.n).mean()
                 macds = macd.iloc[:, 2]
-                macds = macds / mean.rolling(window=n).mean()
+                macds = macds / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
                                pd.Series(macdh, name=i + 'hist'),
                                pd.Series(macds, name=i + 'sig')], axis=1)
@@ -448,52 +436,60 @@ class MOEXtoXY:
             # Directional Movement normalized by the n-day DM
             elif i == 'dm3':
                 dm = pta.dm(high=H, low=L, length=3)
-                dmplus = (dm.iloc[:, 0] / 100)
-                dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
-                dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
+                dmplus = dm.iloc[:, 0] / 100 
+                dmplus = dmplus / dmplus.rolling(window=c.n).mean()
+                dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
+                dmminus = dm.iloc[:, 1] / 100 
+                dmminus = dmminus / dmminus.rolling(window=c.n).mean()
+                dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm5':
                 dm = pta.dm(high=H, low=L, length=5)
-                dmplus = (dm.iloc[:, 0] / 100)
-                dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
-                dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
+                dmplus = dm.iloc[:, 0] / 100 
+                dmplus = dmplus / dmplus.rolling(window=c.n).mean()
+                dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
+                dmminus = dm.iloc[:, 1] / 100 
+                dmminus = dmminus / dmminus.rolling(window=c.n).mean()
+                dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm14':
                 dm = pta.dm(high=H, low=L, length=14)
-                dmplus = (dm.iloc[:, 0] / 100)
-                dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
+                dmplus = dm.iloc[:, 0] / 100
+                dmplus = dmplus / dmplus.rolling(window=c.n).mean()
+                dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
                 dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
+                dmminus = dmminus / dmminus.rolling(window=c.n).mean()
+                dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm21':
                 dm = pta.dm(high=H, low=L, length=21)
-                dmplus = (dm.iloc[:, 0] / 100)
-                dmplus = dmplus.clip(upper=dmplus.quantile(up_quant))
-                dmminus = dm.iloc[:, 1] / 100
-                dmminus = dmminus.clip(upper=dmminus.quantile(up_quant))
+                dmplus = dm.iloc[:, 0] / 100 
+                dmplus = dmplus / dmplus.rolling(window=c.n).mean()
+                dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
+                dmminus = dm.iloc[:, 1] / 100 
+                dmminus = dmminus / dmminus.rolling(window=c.n).mean()
+                dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
                                pd.Series(dmminus, name=i + '-')], axis=1)
 
             # Average True Range normalized by the n-day mean price (HLC)
             elif i == 'atr5':
                 atr = pta.atr(high=H, low=L, close=C, length=5)
-                atr = atr / atr.rolling(window=n).mean()
-                atr = atr.clip(upper=atr.quantile(up_quant))
+                atr = atr / atr.rolling(window=c.n).mean()
+                atr = atr.clip(upper=atr.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(atr, name=i)], axis=1)
             elif i == 'atr14':
                 atr = pta.atr(high=H, low=L, close=C, length=14)
-                atr = atr / atr.rolling(window=n).mean()
-                atr = atr.clip(upper=atr.quantile(up_quant))
+                atr = atr / atr.rolling(window=c.n).mean()
+                atr = atr.clip(upper=atr.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(atr, name=i)], axis=1)
             elif i == 'atr21':
                 atr = pta.atr(high=H, low=L, close=C, length=21)
-                atr = atr / atr.rolling(window=n).mean()
-                atr = atr.clip(upper=atr.quantile(up_quant))
+                atr = atr / atr.rolling(window=c.n).mean()
+                atr = atr.clip(upper=atr.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(atr, name=i)], axis=1)
 
             elif i == 'cci5':
@@ -509,33 +505,33 @@ class MOEXtoXY:
             # STDEV normalized by the n-day STDEV
             elif i == 'stdev15c':
                 stdev = pta.stdev(close=C, length=15)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
             elif i == 'stdev15l':
                 stdev = pta.stdev(close=L, length=15)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
             elif i == 'stdev15h':
                 stdev = pta.stdev(close=H, length=15)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
             elif i == 'stdev5c':
                 stdev = pta.stdev(close=C, length=5)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
             elif i == 'stdev5l':
                 stdev = pta.stdev(close=L, length=5)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
             elif i == 'stdev5h':
                 stdev = pta.stdev(close=H, length=5)
-                stdev = stdev / stdev.rolling(window=n).mean() / 2
-                stdev = stdev.clip(upper=stdev.quantile(up_quant))
+                stdev = stdev / stdev.rolling(window=c.n).mean() / 2
+                stdev = stdev.clip(upper=stdev.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(stdev, name=i)], axis=1)
 
             elif i == 'bop':
@@ -545,99 +541,99 @@ class MOEXtoXY:
             elif i == 'trix14c':
                 trix = pta.trix(close=C, length=14)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix14l':
                 trix = pta.trix(close=L, length=14)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix14h':
                 trix = pta.trix(close=H, length=14)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix5c':
                 trix = pta.trix(close=C, length=5)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix5l':
                 trix = pta.trix(close=L, length=5)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix5h':
                 trix = pta.trix(close=H, length=5)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix20c':
                 trix = pta.trix(close=C, length=20)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix20l':
                 trix = pta.trix(close=L, length=20)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
             elif i == 'trix20h':
                 trix = pta.trix(close=H, length=20)
                 trixsig = trix.iloc[:, 1]
-                trixsig = trixsig.clip(lower=trixsig.quantile(low_quant),
-                                       upper=trixsig.quantile(up_quant))
+                trixsig = trixsig.clip(lower=trixsig.quantile(c.low_quant),
+                                       upper=trixsig.quantile(c.up_quant))
                 trix = trix.iloc[:, 0]
-                trix = trix.clip(lower=trix.quantile(low_quant),
-                                 upper=trix.quantile(up_quant))
+                trix = trix.clip(lower=trix.quantile(c.low_quant),
+                                 upper=trix.quantile(c.up_quant))
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
@@ -646,49 +642,49 @@ class MOEXtoXY:
             elif i == 'ema5_ohlc':
                 ema = pta.ema(pta.ohlc4(Op, H, L, C), length=5)
                 mean = pta.hlc3(H, L, C)
-                ema = ema / mean.rolling(window=n).mean()
+                ema = ema / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(ema, name=i)], axis=1)
             elif i == 'ema10_ohlc':
                 ema = pta.ema(pta.ohlc4(Op, H, L, C), length=10)
                 mean = pta.hlc3(H, L, C)
-                ema = ema / mean.rolling(window=n).mean()
+                ema = ema / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(ema, name=i)], axis=1)
             elif i == 'ema15_ohlc':
                 ema = pta.ema(pta.ohlc4(Op, H, L, C), length=15)
                 mean = pta.hlc3(H, L, C)
-                ema = ema / mean.rolling(window=n).mean()
+                ema = ema / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(ema, name=i)], axis=1)
 
             # WMA (mean price) normalized by the n-day mean price (HLC)
             elif i == 'wma5_ohlc':
                 wma = pta.wma(pta.ohlc4(Op, H, L, C), length=5)
                 mean = pta.hlc3(H, L, C)
-                wma = wma / mean.rolling(window=n).mean()
+                wma = wma / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(wma, name=i)], axis=1)
             elif i == 'wma10_ohlc':
                 wma = pta.wma(pta.ohlc4(Op, H, L, C), length=10)
                 mean = pta.hlc3(H, L, C)
-                wma = wma / mean.rolling(window=n).mean()
+                wma = wma / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(wma, name=i)], axis=1)
             elif i == 'wma15_ohlc':
                 wma = pta.wma(pta.ohlc4(Op, H, L, C), length=15)
                 mean = pta.hlc3(H, L, C)
-                wma = wma / mean.rolling(window=n).mean()
+                wma = wma / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(wma, name=i)], axis=1)
             elif i == 'wma21_ohlc':
                 wma = pta.wma(pta.ohlc4(Op, H, L, C), length=21)
                 mean = pta.hlc3(H, L, C)
-                wma = wma / mean.rolling(window=n).mean()
+                wma = wma / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(wma, name=i)], axis=1)
 
             # Bollinger Bands normalized by the n-day mean price (HLC)
             elif i == 'bb5':
                 bb = pta.bbands(C, length=5)
                 mean = pta.hlc3(H, L, C)
-                low = bb.iloc[:, 0] / mean.rolling(window=n).mean()
-                mid = bb.iloc[:, 1] / mean.rolling(window=n).mean()
-                hi = bb.iloc[:, 2] / mean.rolling(window=n).mean()
-                bw = bb.iloc[:, 3] / mean.rolling(window=n).mean()
+                low = bb.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                mid = bb.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                hi = bb.iloc[:, 2] / mean.rolling(window=c.n).mean()
+                bw = bb.iloc[:, 3] / 100
                 perc = bb.iloc[:, 4]
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(mid, name=i + 'mid'),
@@ -698,10 +694,10 @@ class MOEXtoXY:
             elif i == 'bb10':
                 bb = pta.bbands(C, length=10)
                 mean = pta.hlc3(H, L, C)
-                low = bb.iloc[:, 0] / mean.rolling(window=n).mean()
-                mid = bb.iloc[:, 1] / mean.rolling(window=n).mean()
-                hi = bb.iloc[:, 2] / mean.rolling(window=n).mean()
-                bw = bb.iloc[:, 3] / mean.rolling(window=n).mean()
+                low = bb.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                mid = bb.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                hi = bb.iloc[:, 2] / mean.rolling(window=c.n).mean()
+                bw = bb.iloc[:, 3] / 100
                 perc = bb.iloc[:, 4]
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(mid, name=i + 'mid'),
@@ -711,10 +707,10 @@ class MOEXtoXY:
             elif i == 'bb15':
                 bb = pta.bbands(C, length=15)
                 mean = pta.hlc3(H, L, C)
-                low = bb.iloc[:, 0] / mean.rolling(window=n).mean()
-                mid = bb.iloc[:, 1] / mean.rolling(window=n).mean()
-                hi = bb.iloc[:, 2] / mean.rolling(window=n).mean()
-                bw = bb.iloc[:, 3] / mean.rolling(window=n).mean()
+                low = bb.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                mid = bb.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                hi = bb.iloc[:, 2] / mean.rolling(window=c.n).mean()
+                bw = bb.iloc[:, 3] / 100
                 perc = bb.iloc[:, 4]
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(mid, name=i + 'mid'),
@@ -726,27 +722,27 @@ class MOEXtoXY:
             elif i == 'kc10':
                 kc = pta.kc(high=H, low=L, close=C, length=10)
                 mean = pta.hlc3(H, L, C)
-                low = kc.iloc[:, 0] / mean.rolling(window=n).mean()
-                bas = kc.iloc[:, 1] / mean.rolling(window=n).mean()
-                up = kc.iloc[:, 2] / mean.rolling(window=n).mean()
+                low = kc.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                bas = kc.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                up = kc.iloc[:, 2] / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(bas, name=i + 'bas'),
                                pd.Series(up, name=i + 'up')], axis=1)
             elif i == 'kc15':
                 kc = pta.kc(high=H, low=L, close=C, length=15)
                 mean = pta.hlc3(H, L, C)
-                low = kc.iloc[:, 0] / mean.rolling(window=n).mean()
-                bas = kc.iloc[:, 1] / mean.rolling(window=n).mean()
-                up = kc.iloc[:, 2] / mean.rolling(window=n).mean()
+                low = kc.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                bas = kc.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                up = kc.iloc[:, 2] / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(bas, name=i + 'bas'),
                                pd.Series(up, name=i + 'up')], axis=1)
             elif i == 'kc21':
                 kc = pta.kc(high=H, low=L, close=C, length=21)
                 mean = pta.hlc3(H, L, C)
-                low = kc.iloc[:, 0] / mean.rolling(window=n).mean()
-                bas = kc.iloc[:, 1] / mean.rolling(window=n).mean()
-                up = kc.iloc[:, 2] / mean.rolling(window=n).mean()
+                low = kc.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                bas = kc.iloc[:, 1] / mean.rolling(window=c.n).mean()
+                up = kc.iloc[:, 2] / mean.rolling(window=c.n).mean()
                 X = pd.concat([X, pd.Series(low, name=i + 'low'),
                                pd.Series(bas, name=i + 'bas'),
                                pd.Series(up, name=i + 'up')], axis=1)
@@ -755,8 +751,8 @@ class MOEXtoXY:
             elif i == 'psar':
                 psar = pta.psar(high=H, low=L, close=C, fillna=0)
                 mean = pta.hlc3(H, L, C)
-                long = psar.iloc[:, 0] / mean.rolling(window=n).mean()
-                short = psar.iloc[:, 1] / mean.rolling(window=n).mean()
+                long = psar.iloc[:, 0] / mean.rolling(window=c.n).mean()
+                short = psar.iloc[:, 1] / mean.rolling(window=c.n).mean()
                 af = psar.iloc[:, 2]
                 rev = psar.iloc[:, 3]
                 X = pd.concat([X, pd.Series(long, name=i + 'long'),
@@ -767,15 +763,15 @@ class MOEXtoXY:
             #  divided by 10 because "volume" is very volatile.
             elif i == 'volume1dInc':
                 vol = (V - V.shift(1)) / V.shift(1) / 10
-                vol = vol.clip(upper=vol.quantile(up_quant))
+                vol = vol.clip(upper=vol.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(vol, name=i)], axis=1)
             elif i == 'volume3dInc':
                 vol = (V - V.shift(3)) / V.shift(3) / 10
-                vol = vol.clip(upper=vol.quantile(up_quant))
+                vol = vol.clip(upper=vol.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(vol, name=i)], axis=1)
             elif i == 'volume5dInc':
                 vol = (V - V.shift(5)) / V.shift(5) / 10
-                vol = vol.clip(upper=vol.quantile(up_quant))
+                vol = vol.clip(upper=vol.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(vol, name=i)], axis=1)
 
             elif i == 'mfi5':
@@ -791,78 +787,79 @@ class MOEXtoXY:
             # AD normalized by the n-day mean volume
             elif i == 'ad':
                 ad = pta.ad(high=H, low=L, close=C, volume=V, open_=Op)
-                ad = ad / (V.rolling(window=n).mean() * 100)
-                ad = ad.clip(upper=ad.quantile(up_quant))
+                ad = ad / (V.rolling(window=c.n).mean() * 100) / 2
+                ad = ad.clip(lower=ad.quantile(c.low_quant),
+                             upper=ad.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(ad, name=i)], axis=1)
 
             # ADOSC normalized by the n-day mean volume
             elif i == 'adosc12_26':
                 adosc = pta.adosc(high=H, low=L, close=C,
                                   volume=V, open_=Op, fast=12, slow=26)
-                adosc = adosc / V.rolling(window=n).mean() / 2
-                adosc = adosc.clip(lower=adosc.quantile(low_quant),
-                                   upper=adosc.quantile(up_quant))
+                adosc = adosc / V.rolling(window=c.n).mean() / 2
+                adosc = adosc.clip(lower=adosc.quantile(c.low_quant),
+                                   upper=adosc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(adosc, name=i)], axis=1)
             elif i == 'adosc7_15':
                 adosc = pta.adosc(high=H, low=L, close=C,
                                   volume=V, open_=Op, fast=7, slow=15)
-                adosc = adosc / V.rolling(window=n).mean() / 2
-                adosc = adosc.clip(lower=adosc.quantile(low_quant),
-                                   upper=adosc.quantile(up_quant))
+                adosc = adosc / V.rolling(window=c.n).mean() / 2
+                adosc = adosc.clip(lower=adosc.quantile(c.low_quant),
+                                   upper=adosc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(adosc, name=i)], axis=1)
             elif i == 'adosc3_10':
                 adosc = pta.adosc(high=H, low=L, close=C,
                                   volume=V, open_=Op, fast=3, slow=10)
-                adosc = adosc / V.rolling(window=n).mean() / 2
-                adosc = adosc.clip(lower=adosc.quantile(low_quant),
-                                   upper=adosc.quantile(up_quant))
+                adosc = adosc / V.rolling(window=c.n).mean() / 2
+                adosc = adosc.clip(lower=adosc.quantile(c.low_quant),
+                                   upper=adosc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(adosc, name=i)], axis=1)
 
             # divided by 10 because "number of trades" is very volatile.
             elif i == 'numTrades1dInc':
                 numt = (N - N.shift(1)) / N.shift(1) / 10
-                numt = numt.clip(upper=numt.quantile(up_quant))
+                numt = numt.clip(upper=numt.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(numt, name=i)], axis=1)
             elif i == 'numTrades3dInc':
                 numt = (N - N.shift(3)) / N.shift(3) / 10
-                numt = numt.clip(upper=numt.quantile(up_quant))
+                numt = numt.clip(upper=numt.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(numt, name=i)], axis=1)
             elif i == 'numTrades5dInc':
                 numt = (N - N.shift(5)) / N.shift(5) / 10
-                numt = numt.clip(upper=numt.quantile(up_quant))
+                numt = numt.clip(upper=numt.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(numt, name=i)], axis=1)
 
             # rate of change
             elif i == 'roc1o':
                 roc = (Op - Op.shift(1)) / Op.shift(1)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
             elif i == 'roc3o':
                 roc = (Op - Op.shift(3)) / Op.shift(3)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
             elif i == 'roc5o':
                 roc = (Op - Op.shift(5)) / Op.shift(5)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
 
             elif i == 'roc1c':
                 roc = (C - C.shift(1)) / C.shift(1)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
             elif i == 'roc3c':
                 roc = (C - C.shift(3)) / C.shift(3)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
             elif i == 'roc5c':
                 roc = (C - C.shift(5)) / C.shift(5)
-                roc = roc.clip(lower=roc.quantile(low_quant),
-                               upper=roc.quantile(up_quant))
+                roc = roc.clip(lower=roc.quantile(c.low_quant),
+                               upper=roc.quantile(c.up_quant))
                 X = pd.concat([X, pd.Series(roc, name=i)], axis=1)
 
             # Internal Bar Strength
@@ -899,10 +896,10 @@ class MOEXtoXY:
 
         profit = pd.Series(((mean_forecast - mean) / mean), name='profitInc')
 
-        if self.Y_type == clf:
+        if self.Y_type == c.clf:
             Y = pd.concat([Y, pd.Series((profit >= self.profit_margin),
                           name='profit').astype(int)], axis=1)
-        elif self.Y_type == regr:
+        elif self.Y_type == c.regr:
             Y = pd.concat([Y, pd.Series((profit), name='profit')], axis=1)
             pd.Series(profit, name='profit')
 
@@ -915,9 +912,9 @@ class MOEXtoXY:
         prices.drop(prices.tail(self.length).index, inplace=True)
 
         # drop some first record, because MACD, ADOSC etc. not valid there
-        X.drop(X.head(n + 26).index, inplace=True)
-        Y.drop(Y.head(n + 26).index, inplace=True)
-        prices.drop(prices.head(n + 26).index, inplace=True)
+        X.drop(X.head(c.n + 26).index, inplace=True)
+        Y.drop(Y.head(c.n + 26).index, inplace=True)
+        prices.drop(prices.head(c.n + 26).index, inplace=True)
 
         prices = prices.fillna(-1000).replace(np.inf, -1000)
         X = X.fillna(-1000).replace(np.inf, -1000)
@@ -972,7 +969,7 @@ class MOEXtoXY:
             scatter plot of PCA 3D projection
 
         """
-        if self.Y_type == regr:
+        if self.Y_type == c.regr:
             return None
 
         if draw_expl:
