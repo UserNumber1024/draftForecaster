@@ -10,13 +10,13 @@ Y_type = c.clf
 model_type = c.forest
 search_type = c.bayes_search
 source_tickers = c.file
-source_XY = c.calc
-draw_xy = True
+source_XY = c.file
+draw_xy = False
 draw_pca = False
 draw_tSNE = False
-train_model = False
-print_metrics = False
-draw_metrics = False
+train_model = True
+print_metrics = True
+draw_metrics = True
 draw_model = False
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

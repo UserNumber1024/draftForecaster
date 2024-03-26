@@ -1,11 +1,8 @@
 ---------------------------------------------------------------------------------------------------------------------
 Preparer
-
-убрать сильно коррелированные индикаторы
-profit algo
-https://tradingstrategy.ai/docs/programming/market-data/profitability.html
---------------------------------------------------
 Imbalanced classification !!!
+https://www.justintodata.com/imbalanced-data-machine-learning-classification/
+
 --------------------------------------------------
 Predictor-
 - AutoSklearnClassifier - unix only (or WSL)
