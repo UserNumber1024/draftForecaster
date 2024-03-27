@@ -1,8 +1,8 @@
 ---------------------------------------------------------------------------------------------------------------------
 Preparer
-Imbalanced classification !!!
-https://www.justintodata.com/imbalanced-data-machine-learning-classification/
-
+cost sensitive learning
+class_weights = {0: 1, 1: 10}
+model = RandomForestClassifier(class_weight=class_weights)
 --------------------------------------------------
 Predictor-
 - AutoSklearnClassifier - unix only (or WSL)

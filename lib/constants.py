@@ -12,7 +12,7 @@ low_quant = 0.05
 debug = 2
 n_jobs = 1
 # ---
-random_n_iter = 50
+random_n_iter = 10
 # ---
 tree = 'tree'
 extra = 'extra'
@@ -31,3 +31,6 @@ optuna_search = 'optuna_search'
 file = 'file'
 moex = 'moex'
 calc = 'calc'
+# ---
+KNN = 'KNN'
+NCR = 'NCR'

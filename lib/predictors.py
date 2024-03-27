@@ -73,7 +73,8 @@ class Predictor:
                             'min_samples_split': range(5, 20),
                             'min_samples_leaf': range(5, 20),
                             'max_leaf_nodes': range(10, 400)}
-        self.forest_params = {'n_estimators': [10, 15, 20, 30, 50, 70, 100, 120, 150]}
+        self.forest_params = {'n_estimators': [
+            10, 15, 20, 30, 50, 70, 100, 120, 150]}
         self.forest_regr_criterion = {'criterion': [
             "squared_error", "absolute_error", "poisson"]}
         self.ada_params = {'n_estimators': [10, 15, 20, 30, 50, 70, 100, 120, 150],
@@ -244,7 +245,8 @@ class Predictor:
 
         start_timer = time.time()
         self.__log(model_type + " " + search_type + " " + self.Y_type)
-        self.__log(" start: " + time.strftime("%H:%M:%S", time.gmtime(start_timer)))
+        self.__log(" start: " + time.strftime("%H:%M:%S",
+                   time.gmtime(start_timer)))
 
         X_train, x_test, y_train, y_test = self.__split()
 
@@ -278,8 +280,10 @@ class Predictor:
                       **self.forest_params}
 
             def objective(trial):
-                n_estimators = trial.suggest_categorical('n_estimators', params['n_estimators'])
-                criterion = trial.suggest_categorical('criterion', params['criterion'])
+                n_estimators = trial.suggest_categorical(
+                    'n_estimators', params['n_estimators'])
+                criterion = trial.suggest_categorical(
+                    'criterion', params['criterion'])
                 max_depth = trial.suggest_int('max_depth', params['max_depth'].start,
                                               params['max_depth'].stop)
                 min_samples_split = trial.suggest_int('min_samples_split', params['min_samples_split'].start,
@@ -292,14 +296,14 @@ class Predictor:
                                                    params['max_leaf_nodes'].stop)
 
                 search_model = RandomForestClassifier(n_estimators=n_estimators,
-                                               criterion=criterion,
-                                               max_depth=max_depth,
-                                               min_samples_split=min_samples_split,
-                                               min_samples_leaf=min_samples_leaf,
-                                               max_features=max_features,
-                                               max_leaf_nodes=max_leaf_nodes,
-                                               n_jobs=n_jobs,
-                                               verbose=self.debug)
+                                                      criterion=criterion,
+                                                      max_depth=max_depth,
+                                                      min_samples_split=min_samples_split,
+                                                      min_samples_leaf=min_samples_leaf,
+                                                      max_features=max_features,
+                                                      max_leaf_nodes=max_leaf_nodes,
+                                                      n_jobs=n_jobs,
+                                                      verbose=self.debug)
                 search_model.fit(X_train, y_train.values.ravel())
                 return cross_val_score(model, X_train, y_train, cv=5).mean()
 
@@ -307,7 +311,8 @@ class Predictor:
             study.optimize(objective, n_trials=random_n_iter)
 
             elapsed_time = time.time() - start_timer
-            self.__log('finished: ' + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+            self.__log('finished: ' + time.strftime("%H:%M:%S",
+                       time.gmtime(elapsed_time)))
             self.__log(study.best_value)
             self.__log(study.best_trial)
 
@@ -335,7 +340,8 @@ class Predictor:
         self.trained_model = tree_search.best_estimator_
 
         elapsed_time = time.time() - start_timer
-        self.__log('finished: ' + time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+        self.__log('finished: ' + time.strftime("%H:%M:%S",
+                   time.gmtime(elapsed_time)))
         self.__log('{:-^50}'.format("-"))
 
         return tree_search.best_estimator_

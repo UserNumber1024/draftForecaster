@@ -8,6 +8,7 @@ import talib
 from sklearn import decomposition
 from sklearn.manifold import TSNE
 from lib.connector import MOEXAdapter
+from imblearn.under_sampling import NeighbourhoodCleaningRule, AllKNN
 import lib.constants as c
 # -----------------------------------------------------------------------------
 
@@ -188,7 +189,8 @@ class MOEXtoXY:
                    source_XY=c.calc,
                    length=1,
                    profit_margin=0.01,
-                   Y_type=c.clf
+                   Y_type=c.clf,
+                   under_sampling=None
                    ):
         """Prepare X and Y for analysis and forecasting.
 
@@ -241,6 +243,12 @@ class MOEXtoXY:
             solving classification or regression problem,
             i.e. determine if Y is a target class or a variable.
 
+        under_sampling: {'KNN', 'NCR'}, default None
+            * KNN undersample based on the AllKNN method
+            * NCR undersample based on the neighbourhood cleaning rule
+            https://imbalanced-learn.org/stable/references/under_sampling.html
+
+
         Return
         ------
         X and Y to use by models.
@@ -284,8 +292,16 @@ class MOEXtoXY:
             Y.reset_index(drop=True, inplace=True)
             prices.reset_index(drop=True, inplace=True)
 
+        if under_sampling == c.KNN:
+            knn = AllKNN()
+            X, Y = knn.fit_resample(X, Y)
+        elif under_sampling == c.NCR:
+            ncr = NeighbourhoodCleaningRule()
+            X, Y = ncr.fit_resample(X, Y)
+
         self.X = X
         self.Y = Y
+
         if store_XY2file:
             X.to_csv(file_folder + 'X.csv')
             Y.to_csv(file_folder + 'Y.csv')
@@ -411,10 +427,10 @@ class MOEXtoXY:
             # Directional Movement normalized by the n-day DM
             elif i == 'dm7':
                 dm = pta.dm(high=H, low=L, length=7)
-                dmplus = dm.iloc[:, 0] / 100 
+                dmplus = dm.iloc[:, 0] / 100
                 dmplus = dmplus / dmplus.rolling(window=c.n).mean()
                 dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
-                dmminus = dm.iloc[:, 1] / 100 
+                dmminus = dm.iloc[:, 1] / 100
                 dmminus = dmminus / dmminus.rolling(window=c.n).mean()
                 dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
@@ -431,10 +447,10 @@ class MOEXtoXY:
                                pd.Series(dmminus, name=i + '-')], axis=1)
             elif i == 'dm21':
                 dm = pta.dm(high=H, low=L, length=21)
-                dmplus = dm.iloc[:, 0] / 100 
+                dmplus = dm.iloc[:, 0] / 100
                 dmplus = dmplus / dmplus.rolling(window=c.n).mean()
                 dmplus = dmplus.clip(upper=dmplus.quantile(c.up_quant)) / 2
-                dmminus = dm.iloc[:, 1] / 100 
+                dmminus = dm.iloc[:, 1] / 100
                 dmminus = dmminus / dmminus.rolling(window=c.n).mean()
                 dmminus = dmminus.clip(upper=dmminus.quantile(c.up_quant)) / 2
                 X = pd.concat([X, pd.Series(dmplus, name=i + '+'),
@@ -528,7 +544,7 @@ class MOEXtoXY:
                 trix.columns = [i, i + 's']
                 X = pd.concat([X, pd.Series(trix, name=i),
                                pd.Series(trixsig, name=i + 'sig')], axis=1)
- 
+
             elif i == 'trix16c':
                 trix = pta.trix(close=C, length=16)
                 trixsig = trix.iloc[:, 1]

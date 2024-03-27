@@ -7,13 +7,14 @@ warnings.filterwarnings("ignore")
 # SETUP PARAMS OF EXPERIMENT HERE----------------------------------------------
 # -----------------------------------------------------------------------------
 Y_type = c.clf
+under_sampling = c.KNN
 model_type = c.forest
 search_type = c.bayes_search
 source_tickers = c.file
-source_XY = c.file
-draw_xy = False
-draw_pca = False
-draw_tSNE = False
+source_XY = c.calc
+draw_xy = True
+draw_pca = True
+draw_tSNE = True
 train_model = True
 print_metrics = True
 draw_metrics = True
@@ -25,7 +26,8 @@ X, Y, prices = preparer.prepare_XY(source_tickers=source_tickers,
                                    source_XY=source_XY,
                                    length=c.length,
                                    profit_margin=c.profit_margin,
-                                   Y_type=Y_type)
+                                   Y_type=Y_type,
+                                   under_sampling = under_sampling)
 if draw_xy:
     preparer.draw_X_Y()
 if draw_pca:
