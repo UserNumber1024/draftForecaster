@@ -1,12 +1,12 @@
 ---------------------------------------------------------------------------------------------------------------------
-Preparer
-cost sensitive learning
-class_weights = {0: 1, 1: 10}
-model = RandomForestClassifier(class_weight=class_weights)
+Predictor
+- cost sensitive learning
+- class_weights 
 --------------------------------------------------
 Predictor-
-- AutoSklearnClassifier - unix only (or WSL)
-- XGBOOST
+- XGBOOST (after that remove ada + gboost
+https://habr.com/ru/companies/ods/articles/645887/
+https://neptune.ai/blog/when-to-choose-catboost-over-xgboost-or-lightgbm
 - can't draw a gradient boost
 - какие графики метрик для регресса можно нарисовать
 https://syedluqman.com/machine-learning/top-5-auto-ml-auto-machine-learning-libraries-for-python/
