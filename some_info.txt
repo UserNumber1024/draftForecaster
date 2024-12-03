@@ -1,16 +1,15 @@
----------------------------------------------------------------------------------------------------------------------
-Predictor
-- cost sensitive learning
-- class_weights 
 --------------------------------------------------
-Predictor-
-- XGBOOST (after that remove ada + gboost
-https://habr.com/ru/companies/ods/articles/645887/
-https://neptune.ai/blog/when-to-choose-catboost-over-xgboost-or-lightgbm
-- can't draw a gradient boost
-- какие графики метрик для регресса можно нарисовать
-https://syedluqman.com/machine-learning/top-5-auto-ml-auto-machine-learning-libraries-for-python/
-https://www.activestate.com/blog/the-top-10-automl-python-packages-to-automate-your-machine-learning-tasks/
+look at feature correlations, may be comment something >95%
+once more time look at feature scale, may be change smthng
+calc normal profit percent (due broker comission etc)
+may be remove tickerid, month
+--------------------------------------------------
+Predictor add-
+- catboost 
+- XGBOOST
+one of them may be enough 
+-----------------------
+переделать - графическое или текстовое отображение метрик
 --------------------------------------------------
 CONSTANT USEFUL LINKS
 https://www.kaggle.com/

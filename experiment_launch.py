@@ -6,42 +6,34 @@ warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------
 # SETUP PARAMS OF EXPERIMENT HERE----------------------------------------------
 # -----------------------------------------------------------------------------
-Y_type = c.clf
-under_sampling = c.KNN
-model_type = c.forest
-search_type = c.bayes_search
-source_tickers = c.file
-source_XY = c.calc
+source_tickers = c.file         # file, moex
+source_XY = c.file              # file, calc
+store_tickers2file = False      # set false after downloading actual data
+store_XY2file = False           # set false after preparing actual X and Y
 draw_xy = False
-draw_pca = False
-draw_tSNE = False
 train_model = True
 print_metrics = True
-draw_metrics = True
-draw_model = False
+draw_metrics = False
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-preparer = MOEXtoXY(debug=c.debug)
-X, Y, prices = preparer.prepare_XY(source_tickers=source_tickers,
-                                   source_XY=source_XY,
-                                   length=c.length,
-                                   profit_margin=c.profit_margin,
-                                   Y_type=Y_type,
-                                   under_sampling = under_sampling)
+preparer = MOEXtoXY()
+X, Y, prices = preparer.prepare_XY(
+    store_tickers2file=store_tickers2file,
+    store_XY2file=store_XY2file,
+    source_tickers=source_tickers,
+    source_XY=source_XY,
+    profit_margin=c.profit_margin)
 if draw_xy:
     preparer.draw_X_Y()
-if draw_pca:
-    preparer.draw_PCA()
-if draw_tSNE: 
-    preparer.draw_tSNE(n_jobs=-1, n_iter=500)
+
 if train_model:
-    predictor = Predictor(X=X, Y=Y, Y_type=Y_type, debug=c.debug)
-    best_tree = predictor.tree_search(search_type=search_type,
-                                      model_type=model_type,
-                                      n_jobs=c.n_jobs, random_n_iter=c.random_n_iter)
+    # 'profit_1'
+    # 'mean_delta_1'
+    predictor = Predictor(X=X, Y=Y['profit_1'], Y_type=c.clf, debug=c.debug)
+    best_tree = predictor.tree_search(n_jobs=c.n_jobs,
+                                      n_trials=c.n_trials)
     if print_metrics:
         predictor.print_metrics()
     if draw_metrics:
         predictor.draw_metrics()
-    if draw_model:
-        predictor.draw_model()
+
