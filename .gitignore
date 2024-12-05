@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 /data/
 /graph/
+/iframe_figures/
+/catboost_info/

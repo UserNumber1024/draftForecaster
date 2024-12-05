@@ -10,27 +10,16 @@ calc = 'calc'
 clf = 'clf'
 regr = 'regr'
 # ---------------------------------------------------------
-n_jobs = 3  # jobs for search hyperparams (-1 use all cores)
+n_jobs = 2  # jobs for search hyperparams (-1 use all cores)
 n_trials = 2  # trials for optuna
-
-max_dep = range(50, 200)
-max_feat = ['sqrt', 'log2']
-min_s_split = range(10, 100)
-min_s_leaf = range(20, 100)
-max_l_nodes = range(50, 500)
-n_est = range(50, 500)
-f_clf_crit = ['gini', 'entropy']
-f_rgr_crit = ['squared_error', 'absolute_error', 'poisson']
-class_weight = ['balanced']
-bootstr = [True, False]
-# ----------------------------------------------------------
+# ---------------------------------------------------------
 n_days = 60  # days for normalization by mean
 profit_margin = 0.01  # price increase (in percent) meaning "profit"
 up_quant = 0.95  # used to normalize/scale indicators
 low_quant = 0.05  # used to normalize/scale indicators
 start = "2015-01-01"
 end = "2024-12-01"
-
+# ---------------------------------------------------------
 moex_ticker_ids = {
     'SBER': 0.01,
     'SBERP': 0.02,
@@ -63,3 +52,16 @@ moex_ticker_ids = {
 # ----------------------------------------------------------
 file_folder = 'data/'
 graph_folder = 'graph/'
+# ----------------------------------------------------------
+# Random forest params
+# max_dep = range(50, 200)
+# max_feat = ['sqrt', 'log2']
+# min_s_split = range(10, 100)
+# min_s_leaf = range(20, 100)
+# max_l_nodes = range(50, 500)
+# n_est = range(50, 500)
+# f_clf_crit = ['gini', 'entropy']
+# f_rgr_crit = ['squared_error', 'absolute_error', 'poisson']
+# class_weight = ['balanced']
+# bootstr = [True, False]
+# ----------------------------------------------------------

@@ -1,4 +1,5 @@
-from lib.predictors import Predictor
+from lib.predictorForest import ModelForest
+from lib.predictorCatBoost import ModelCatBoost
 from lib.preparer import MOEXtoXY
 import warnings
 import lib.constants as c
@@ -13,7 +14,8 @@ store_XY2file = False           # set false after preparing actual X and Y
 draw_xy = False
 train_model = True
 print_metrics = True
-draw_metrics = False
+draw_metrics = True
+export_model = True
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 preparer = MOEXtoXY()
@@ -29,11 +31,22 @@ if draw_xy:
 if train_model:
     # 'profit_1'
     # 'mean_delta_1'
-    predictor = Predictor(X=X, Y=Y['profit_1'], Y_type=c.clf, debug=c.debug)
-    best_tree = predictor.tree_search(n_jobs=c.n_jobs,
-                                      n_trials=c.n_trials)
-    if print_metrics:
-        predictor.print_metrics()
-    if draw_metrics:
-        predictor.draw_metrics()
+    # model = ModelForest(
+    #     X=X, Y=Y['profit_1'], Y_type=c.clf, debug=c.debug)
+    # best_tree = predictor.tree_search(n_jobs=c.n_jobs,
+    #                                   n_trials=c.n_trials)
+    model = ModelCatBoost(X=X, Y=Y['profit_1'], Y_type=c.clf)
+    model.optimize_params()
+    model.fit()
 
+    if print_metrics:
+        model.print_best_params()
+        model.print_metrics()
+        # predictor.print_metrics()
+
+    if draw_metrics:
+        model.draw_metrics()
+        # predictor.draw_metrics()
+
+    if export_model:
+        model.export_model('catboost_model.pkl')

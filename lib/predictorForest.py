@@ -30,8 +30,8 @@ from typing import Any
 # -----------------------------------------------------------------------------
 
 
-class Predictor:
-    """Tree-like models training."""
+class ModelForest:
+    """Random forest models training."""
 
     def __init__(self, X: pd.DataFrame, Y: pd.DataFrame, Y_type: str,
                  rnd_state=0, seed=0.33, debug=c.debug):
@@ -216,6 +216,7 @@ class Predictor:
                        timeout=None, gc_after_trial=False,
                        show_progress_bar=True)
 
+        
         importances = optuna.importance.get_param_importances(study)
         self.__log("Hyperparameter Importances:", False)
         for param, importance in importances.items():
