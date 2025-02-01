@@ -1,7 +1,7 @@
 import optuna
 import numpy as np
 import lib.constants as c
-from catboost import CatBoostClassifier, CatBoostRegressor, Pool
+from catboost import CatBoostClassifier, CatBoostRegressor, Pool, metrics, cv
 from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                              median_absolute_error,
                              mean_absolute_percentage_error, r2_score,
@@ -11,7 +11,10 @@ from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                              roc_auc_score, make_scorer,
                              ConfusionMatrixDisplay, confusion_matrix,
                              RocCurveDisplay, roc_curve,
-                             PrecisionRecallDisplay, precision_recall_curve)
+                             PrecisionRecallDisplay, precision_recall_curve,
+                             roc_auc_score, log_loss, cohen_kappa_score,
+                             matthews_corrcoef)
+from sklearn.model_selection import (train_test_split, cross_val_score, KFold)
 import matplotlib.pyplot as plt
 import joblib
 from typing import Any
@@ -23,18 +26,21 @@ class ModelCatBoost:
     """Catboost models training.
 
     https://catboost.ai/docs/en/
+    https://github.com/catboost/tutorials
+
     """
 
-    def __init__(self, X, Y, Y_type=c.clf, rnd_state=0):
+    def __init__(self, X, Y, Y_type=c.clf, rnd_state=0, name='clf_catbst_1'):
         self.X = X
         self.Y = Y
         self.Y_type = Y_type
         self.model = None
         self.study = None
         self.debug = c.debug
-        # self.seed = seed    # !!!!!!!
+        self.seed = c.seed
         self.rnd_state = np.random.randint(
-            1, 500) if rnd_state == 0 else rnd_state    # !!!!!!!
+            1, 500) if rnd_state == 0 else rnd_state
+        self.name = name
 
     def __log(self, text: Any, divider=True):
         """Print log info if 'debug' is on."""
@@ -43,41 +49,86 @@ class ModelCatBoost:
                 print('{:-^50}'.format("-"))
             print('-=[ ', text, ' ]=-')
 
+    def __split(self):
+        """Split dataset and target to train/test sets."""
+        self.__log('Split dataset with random_state:')
+        self.__log(self.rnd_state, False)
+        return train_test_split(
+            self.X, self.Y,
+            test_size=self.seed,
+            random_state=self.rnd_state,
+            stratify=self.Y if self.Y_type == c.clf else None)
+
     def __objective(self, trial):
         """."""
         params = {
             'iterations': trial.suggest_int('iterations', 100, 1000),
-            'depth': trial.suggest_int('depth', 1, 10),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
-            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10)
+            'depth': trial.suggest_int('depth', 1, 15),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.8),
+            'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10),
+            'boosting_type': trial.suggest_categorical('boosting_type',
+                                                       ['Ordered', 'Plain']),
+            'max_ctr_complexity': trial.suggest_int('max_ctr_complexity', 0, 8),
+            "objective": trial.suggest_categorical("objective",
+                                                   ["Logloss", "CrossEntropy"]),
+            "colsample_bylevel": trial.suggest_float("colsample_bylevel",
+                                                     0.01, 0.1),
+            "bootstrap_type": trial.suggest_categorical("bootstrap_type",
+                                                        ["Bayesian",
+                                                         "Bernoulli", "MVS"])
         }
 
+        if params["bootstrap_type"] == "Bayesian":
+            params["bagging_temperature"] = trial.suggest_float(
+                "bagging_temperature", 0, 10)
+        elif params["bootstrap_type"] == "Bernoulli":
+            params["subsample"] = trial.suggest_float("subsample", 0.1, 1)
+
+        params.update({'random_state': self.rnd_state})
+        X_train, _, y_train, _ = self.__split()
+
         if self.Y_type == c.clf:
-            model = CatBoostClassifier(**params)
-        elif self.Y_type == c.clf:
+            params["loss_function"] = trial.suggest_categorical("loss_function",
+                                                                ["Logloss"])
+
+            model = CatBoostClassifier(**params,
+                                       eval_metric="F1",
+                                       custom_metric=["F1", "AUC", "Accuracy"])
+            # !!!!!
+            # https://github.com/catboost/tutorials/blob/master/cross_validation/cv_tutorial.ipynb
+            cv_results = cv(Pool(X_train, y_train),
+                            model.get_params(),
+                            verbose_eval=False,
+                            early_stopping_rounds=100
+                            )
+
+            self.__log("F1 from CV")
+            self.__log(np.max(cv_results['test-F1-mean']), False)
+            self.__log(np.max(cv_results['test-F1-std']), False)
+            self.__log("AUC", False)
+            self.__log(np.max(cv_results['test-AUC-mean']), False)
+            self.__log(np.max(cv_results['test-AUC-std']), False)
+            self.__log("Accuracy", False)
+            self.__log(np.max(cv_results['test-Accuracy-mean']), False)
+            self.__log(np.max(cv_results['test-Accuracy-std']), False)
+
+            return cv_results['test-F1-mean'].max()
+            # !!!! возможно добавить второй параметр, если перекос
+
+        elif self.Y_type == c.regr:
+            params["loss_function"] = trial.suggest_categorical("loss_function",
+                                                                ["RMSE"])
+
             model = CatBoostRegressor(**params)
+            y_pred = model.predict(self.X)
+            return -mean_squared_error(self.Y, y_pred)  # Минимизируем MSE
+
         else:
             print("Wrong Y_type")
             return
 
-        # Используем Pool для CatBoost
-        # какие ещё вариант и что такое пул
-        pool = Pool(self.X, self.Y)
         # !!! partial fit
         # !!! pruner exception
-        # !!! supress 319:	learn: 0.3649491	total: 29.8s	remaining: 186ms
-        model.fit(pool, verbose_eval=False)
-
-        if self.Y_type == c.clf:
-            y_pred = model.predict(self.X)
-            # scorer = make_scorer(roc_auc_score, needs_proba=True)
-            # scores = cross_val_score(
-            # search_model, X_train, y_train, scoring=scorer, cv=kf)
-            # !!! что-то другое, не аккураси
-            return accuracy_score(self.Y, y_pred)
-        else:
-            y_pred = model.predict(self.X)
-            return -mean_squared_error(self.Y, y_pred)  # Минимизируем MSE
 
     def optimize_params(self):
         """."""
@@ -88,12 +139,14 @@ class ModelCatBoost:
 
         start_timer = time.time()
         self.__log(self.Y_type)
+        self.__log(self.name)
         self.__log(" start: " + time.strftime("%H:%M:%S",
                    time.gmtime(start_timer)), False)
 
         direction = 'maximize' if self.Y_type == c.clf else 'minimize'
         pruner = optuna.pruners.MedianPruner()
-        # !!! прунер подобрать
+        # !!! pruner
+        # !!! sampler ???
 
         self.study = optuna.create_study(pruner=pruner,
                                          direction=direction)
@@ -135,20 +188,31 @@ class ModelCatBoost:
 
         print('{:-^50}'.format("-"))
         y_pred = self.model.predict(self.X)
+        # Вероятности положительного класса
+        y_proba = self.model.predict_proba(self.X)[:, 1]
         if self.Y_type == c.clf:
-            accuracy = accuracy_score(self.Y, y_pred)
-            precision = precision_score(self.Y, y_pred, average='weighted')
-            recall = recall_score(self.Y, y_pred, average='weighted')
-            print(
-                f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
-            print(classification_report(
-                self.Y, y_pred))
+            print("ROC AUC: ", roc_auc_score(self.Y, y_proba))
+            print("Log Loss: ", log_loss(self.Y, y_proba))
+            print("Cohen's Kappa: ", cohen_kappa_score(self.Y, y_pred))
+            print("Matthews Correlation Coefficient MCC: ",
+                  matthews_corrcoef(self.Y, y_pred))
+            print("Score: ", self.model.score(self.X, self.Y))
+            print("")
+            print(classification_report(self.Y, y_pred))
         else:
             mse = mean_squared_error(self.Y, y_pred)
             print(f"Mean Squared Error: {mse:.4f}")
 
     def draw_metrics(self):
         """."""
+        # !!! SHAP
+        # https://github.com/shap/shap
+        # https://github.com/catboost/tutorials/blob/master/model_analysis/shap_values_tutorial.ipynb
+        # !!!!!
+        # !!! feature statistic
+        # https://catboost.ai/docs/en/concepts/python-reference_catboost_calc_feature_statistics
+        # https://github.com/catboost/tutorials/blob/master/model_analysis/feature_statistics_tutorial.ipynb
+
         if self.study is None:
             print("No study.")
             return
@@ -166,9 +230,8 @@ class ModelCatBoost:
         plt.yticks(range(len(feature_importances)),
                    feature_names[sorted_indices])
         plt.title("Feature Importance")
-        plt.savefig(c.graph_folder + "feat_importance.png")
+        plt.savefig(c.graph_folder + self.name + "feat_imp.png")
         self.__log('save feat_importance to: ' + c.graph_folder)
-        plt.show()
         plt.close()
 
         if self.Y_type == c.clf:
@@ -176,28 +239,30 @@ class ModelCatBoost:
 
             # Confusion matrix
             cm_display = ConfusionMatrixDisplay.from_estimator(
-                self.model, self.X, self.Y).plot()
-            cm_display.figure_.savefig(c.graph_folder + "feat_confusion.png")
+                self.model, self.X, self.Y)
+            cm_display.figure_.savefig(c.graph_folder + self.name + "feat_confusion.png")
             self.__log('save confusion to: ' + c.graph_folder)
 
             # Receiver Operating Characteristic
             roc_display = RocCurveDisplay.from_estimator(
-                self.model, self.X, self.Y).plot()
-            roc_display.figure_.savefig(c.graph_folder + "feat_ROC.png")
+                self.model, self.X, self.Y)
+            roc_display.figure_.savefig(c.graph_folder + self.name + "feat_ROC.png")
             self.__log('save ROC to: ' + c.graph_folder)
 
             # Precision Recall
             pr_display = PrecisionRecallDisplay.from_estimator(
-                self.model, self.X, self.Y).plot()
-            pr_display.figure_.savefig(c.graph_folder + "feat_PR.png")
+                self.model, self.X, self.Y)
+            pr_display.figure_.savefig(c.graph_folder + self.name + "feat_PR.png")
             self.__log('save PR to: ' + c.graph_folder)
 
             #
-            fig, axes = plt.subplots(nrows=1, figsize=(25, 25))
+            plt.figure(figsize=(25, 25))
+            # fig, axes = plt.subplots(nrows=1, figsize=(25, 25))
             plt.title("PREDICT PROBABILITY")
             plt.hist(y_pred_proba, color=['green', 'orange'])
-            fig.savefig(c.graph_folder + "feat_pred_proba.png")
+            plt.savefig(c.graph_folder + self.name + "feat_pred_proba.png")
             self.__log('save pred_proba to: ' + c.graph_folder)
+            plt.close()
 
         else:
             mse = mean_squared_error(self.Y, y_pred)
@@ -207,14 +272,22 @@ class ModelCatBoost:
             plt.show()
             print(f"Mean Squared Error: {mse:.4f}")
 
-
-    def export_model(self, filename):
+    def export_model(self):
         """."""
         if self.model is None:
             print("Model is not.")
             return
-        joblib.dump(self.model, filename)
+        filename = c.model_folder + self.name
+        joblib.dump(self.model, filename+'.pkl')
+
+        self.model.save_model(filename+'.json',
+                              format="json")
         print(f"Model exported to {filename}")
+
+        # to load model from file and show keys
+        # import json
+        # model = json.load(open("model.json", "r"))
+        # model.keys()
 
     def fit(self):
         """."""
@@ -222,13 +295,21 @@ class ModelCatBoost:
             print("No study.")
             return
 
+        X_train, X_test, y_train, y_test = self.__split()
+
         best_params = self.study.best_params
+        best_params.update({'random_state': self.rnd_state})
+
         if self.Y_type == c.clf:
             self.model = CatBoostClassifier(**best_params)
         else:
             self.model = CatBoostRegressor(**best_params)
 
-        pool = Pool(self.X, self.Y)
-        self.model.fit(pool, verbose_eval=False)
+        train_pool = Pool(X_train, y_train)
+        eval_pool = Pool(X_test, y_test)
+        self.model.fit(train_pool,
+                       eval_set=eval_pool,
+                       verbose_eval=False,
+                       early_stopping_rounds=100)
 
         self.__log("Class " + self.model.__class__.__name__, False)

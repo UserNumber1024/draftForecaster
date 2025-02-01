@@ -1,15 +1,4 @@
---------------------------------------------------
-look at feature correlations, may be comment something >95%
-once more time look at feature scale, may be change smthng
-calc normal profit percent (due broker comission etc)
-may be remove tickerid, month
---------------------------------------------------
-Predictor add-
-- catboost 
-- XGBOOST
-one of them may be enough 
------------------------
-переделать - графическое или текстовое отображение метрик
+
 --------------------------------------------------
 CONSTANT USEFUL LINKS
 https://www.kaggle.com/

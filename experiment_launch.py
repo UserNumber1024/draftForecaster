@@ -1,52 +1,84 @@
-from lib.predictorForest import ModelForest
+import warnings
+import sys
 from lib.predictorCatBoost import ModelCatBoost
 from lib.preparer import MOEXtoXY
-import warnings
 import lib.constants as c
 warnings.filterwarnings("ignore")
-# -----------------------------------------------------------------------------
-# SETUP PARAMS OF EXPERIMENT HERE----------------------------------------------
-# -----------------------------------------------------------------------------
-source_tickers = c.file         # file, moex
-source_XY = c.file              # file, calc
-store_tickers2file = False      # set false after downloading actual data
-store_XY2file = False           # set false after preparing actual X and Y
-draw_xy = False
-train_model = True
-print_metrics = True
-draw_metrics = True
-export_model = True
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-preparer = MOEXtoXY()
-X, Y, prices = preparer.prepare_XY(
-    store_tickers2file=store_tickers2file,
-    store_XY2file=store_XY2file,
-    source_tickers=source_tickers,
-    source_XY=source_XY,
-    profit_margin=c.profit_margin)
-if draw_xy:
-    preparer.draw_X_Y()
 
-if train_model:
-    # 'profit_1'
-    # 'mean_delta_1'
-    # model = ModelForest(
-    #     X=X, Y=Y['profit_1'], Y_type=c.clf, debug=c.debug)
-    # best_tree = predictor.tree_search(n_jobs=c.n_jobs,
-    #                                   n_trials=c.n_trials)
-    model = ModelCatBoost(X=X, Y=Y['profit_1'], Y_type=c.clf)
-    model.optimize_params()
-    model.fit()
 
-    if print_metrics:
-        model.print_best_params()
-        model.print_metrics()
-        # predictor.print_metrics()
+class ExperimentConfig:
+    """Setup experiment parameters."""
 
-    if draw_metrics:
-        model.draw_metrics()
-        # predictor.draw_metrics()
+    def __init__(self):
+        self.source_tickers = c.file         # file, moex
+        self.source_XY = c.file              # file, calc
+        self.store_tickers2file = False      # false after downloading data
+        self.store_XY2file = False           # false after preparing X and Y
+        self.draw_xy = True
+        self.train_model = True
+        self.print_metrics = True
+        self.draw_metrics = True
+        self.export_model = True
 
-    if export_model:
-        model.export_model('catboost_model.pkl')
+
+def log_output(log_file: str):
+    """Redirect print to a file."""
+
+    class LogOutput:
+        def __enter__(self):
+            self.original_stdout = sys.stdout
+            sys.stdout = open(log_file, 'w')
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            sys.stdout.close()
+            sys.stdout = self.original_stdout
+
+    return LogOutput()
+
+
+def run_experiment(config: ExperimentConfig):
+    """Run models learning."""
+    preparer = MOEXtoXY()
+    X, Y, prices = preparer.prepare_XY(
+        store_tickers2file=config.store_tickers2file,
+        store_XY2file=config.store_XY2file,
+        source_tickers=config.source_tickers,
+        source_XY=config.source_XY,
+        profit_margin=c.profit_margin
+    )
+
+    if config.draw_xy:
+        preparer.draw_X_Y()
+
+    for period in [1, 2, 3, 4, 5]:
+        for model_type in [c.clf]:
+            y_name = "profit_" if model_type == c.clf else "mean_delta_"
+            y_name = f"{y_name}{period}"
+
+            name = f"{model_type}_catbst_{period}"
+
+            if config.train_model:
+                model = ModelCatBoost(
+                    X=X, Y=Y[y_name], Y_type=c.clf, name=name)
+                model.optimize_params()
+                model.fit()
+
+                if config.print_metrics:
+                    model.print_best_params()
+                    model.print_metrics()
+
+                if config.draw_metrics:
+                    model.draw_metrics()
+
+                if config.export_model:
+                    model.export_model()
+
+
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    config = ExperimentConfig()
+
+    with log_output('log/log.txt'):
+        run_experiment(config)
+
+    print("Learning completed.")

@@ -1,8 +1,8 @@
-# !!!!!!!!!!!!!!!!!!!
-# Development paused due weak intermediate result
+# !!!!!!!!!!!!!!!!!!! Deprecate
+# Development stopped due weak intermediate result
 # summary
 # - classifier ok, metric ok
-# - regressor - not tested (looks like hang up), metric not teted
+# - regressor - not tested (looks like hang up), metric not tested
 # - to do - reduce hyperparam range, implement pruner
 # pruner https://skine.ru/articles/751791/
 
