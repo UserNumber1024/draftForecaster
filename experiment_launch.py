@@ -14,7 +14,7 @@ class ExperimentConfig:
         self.source_XY = c.file              # file, calc
         self.store_tickers2file = False      # false after downloading data
         self.store_XY2file = False           # false after preparing X and Y
-        self.draw_xy = True
+        self.draw_xy = False
         self.train_model = True
         self.print_metrics = True
         self.draw_metrics = True
@@ -50,8 +50,10 @@ def run_experiment(config: ExperimentConfig):
     if config.draw_xy:
         preparer.draw_X_Y()
 
-    for period in [1, 2, 3, 4, 5]:
-        for model_type in [c.clf]:
+    # for period in [1, 2, 3, 4, 5]:
+    for period in [1]:
+        # for model_type in [c.clf]:
+        for model_type in [c.regr]:
             y_name = "profit_" if model_type == c.clf else "mean_delta_"
             y_name = f"{y_name}{period}"
 
@@ -59,7 +61,7 @@ def run_experiment(config: ExperimentConfig):
 
             if config.train_model:
                 model = ModelCatBoost(
-                    X=X, Y=Y[y_name], Y_type=c.clf, name=name)
+                    X=X, Y=Y[y_name], Y_type=model_type, name=name)
                 model.optimize_params()
                 model.fit()
 
@@ -73,12 +75,14 @@ def run_experiment(config: ExperimentConfig):
                 if config.export_model:
                     model.export_model()
 
+    return X, Y, prices
+
 
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     config = ExperimentConfig()
 
     with log_output('log/log.txt'):
-        run_experiment(config)
+        X, Y, prices = run_experiment(config)
 
     print("Learning completed.")

@@ -1,6 +1,7 @@
 import optuna
 import numpy as np
 import lib.constants as c
+import scipy.stats as stats
 from catboost import CatBoostClassifier, CatBoostRegressor, Pool, metrics, cv
 from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                              median_absolute_error,
@@ -13,7 +14,8 @@ from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                              RocCurveDisplay, roc_curve,
                              PrecisionRecallDisplay, precision_recall_curve,
                              roc_auc_score, log_loss, cohen_kappa_score,
-                             matthews_corrcoef)
+                             matthews_corrcoef, explained_variance_score,
+                             max_error)
 from sklearn.model_selection import (train_test_split, cross_val_score, KFold)
 import matplotlib.pyplot as plt
 import joblib
@@ -69,8 +71,8 @@ class ModelCatBoost:
             'boosting_type': trial.suggest_categorical('boosting_type',
                                                        ['Ordered', 'Plain']),
             'max_ctr_complexity': trial.suggest_int('max_ctr_complexity', 0, 8),
-            "objective": trial.suggest_categorical("objective",
-                                                   ["Logloss", "CrossEntropy"]),
+            # "objective": trial.suggest_categorical("objective",
+            # ["Logloss", "CrossEntropy"]),
             "colsample_bylevel": trial.suggest_float("colsample_bylevel",
                                                      0.01, 0.1),
             "bootstrap_type": trial.suggest_categorical("bootstrap_type",
@@ -89,7 +91,7 @@ class ModelCatBoost:
 
         if self.Y_type == c.clf:
             params["loss_function"] = trial.suggest_categorical("loss_function",
-                                                                ["Logloss"])
+                                                                ["Logloss", "CrossEntropy"])
 
             model = CatBoostClassifier(**params,
                                        eval_metric="F1",
@@ -117,11 +119,32 @@ class ModelCatBoost:
 
         elif self.Y_type == c.regr:
             params["loss_function"] = trial.suggest_categorical("loss_function",
-                                                                ["RMSE"])
+                                                                ["RMSE", "MAE"])
 
-            model = CatBoostRegressor(**params)
-            y_pred = model.predict(self.X)
-            return -mean_squared_error(self.Y, y_pred)  # Минимизируем MSE
+            model = CatBoostRegressor(**params,
+                                      eval_metric="MAPE",
+                                      custom_metric=["R2", "MAE", "RMSE"])
+
+            cv_results = cv(Pool(X_train, y_train),
+                            model.get_params(),
+                            verbose_eval=False,
+                            early_stopping_rounds=100
+                            )
+
+            self.__log("RMSE from CV")
+            self.__log(np.max(cv_results['test-RMSE-mean']), False)
+            self.__log(np.max(cv_results['test-RMSE-std']), False)
+            self.__log("R2", False)
+            self.__log(np.max(cv_results['test-R2-mean']), False)
+            self.__log(np.max(cv_results['test-R2-std']), False)
+            self.__log("MAE", False)
+            self.__log(np.max(cv_results['test-MAE-mean']), False)
+            self.__log(np.max(cv_results['test-MAE-std']), False)
+            self.__log("MAPE", False)
+            self.__log(np.max(cv_results['test-MAPE-mean']), False)
+            self.__log(np.max(cv_results['test-MAPE-std']), False)
+
+            return cv_results['test-MAPE-mean'].min()
 
         else:
             print("Wrong Y_type")
@@ -129,6 +152,7 @@ class ModelCatBoost:
 
         # !!! partial fit
         # !!! pruner exception
+        # !!! may be change cv to handmade loop throu fit`s
 
     def optimize_params(self):
         """."""
@@ -151,7 +175,8 @@ class ModelCatBoost:
         self.study = optuna.create_study(pruner=pruner,
                                          direction=direction)
 
-        show_progress_bar = True if c.debug >= 1 else False
+        # show_progress_bar = True if c.debug >= 1 else False
+        show_progress_bar = False
         self.study.optimize(self.__objective,
                             n_trials=c.n_trials,
                             timeout=None,
@@ -188,9 +213,10 @@ class ModelCatBoost:
 
         print('{:-^50}'.format("-"))
         y_pred = self.model.predict(self.X)
-        # Вероятности положительного класса
-        y_proba = self.model.predict_proba(self.X)[:, 1]
+
         if self.Y_type == c.clf:
+            # Вероятности положительного класса
+            y_proba = self.model.predict_proba(self.X)[:, 1]
             print("ROC AUC: ", roc_auc_score(self.Y, y_proba))
             print("Log Loss: ", log_loss(self.Y, y_proba))
             print("Cohen's Kappa: ", cohen_kappa_score(self.Y, y_pred))
@@ -200,18 +226,27 @@ class ModelCatBoost:
             print("")
             print(classification_report(self.Y, y_pred))
         else:
-            mse = mean_squared_error(self.Y, y_pred)
-            print(f"Mean Squared Error: {mse:.4f}")
+            print("MSE: ", mean_squared_error(self.Y, y_pred))
+            print("MAE: ", mean_absolute_error(self.Y, y_pred))
+            print("r2: ", r2_score(self.Y, y_pred))
+            print("MAPE: ", mean_absolute_percentage_error(self.Y, y_pred))
+            print("MedAE: ", median_absolute_error(self.Y, y_pred))
+            print("Explained Variance Score: ",
+                  explained_variance_score(self.Y, y_pred))
+            print("MaxError: ", max_error(self.Y, y_pred))
+            cv = np.std(self.Y - y_pred) / np.mean(self.Y - y_pred) * 100
+            print("Coeff of Variation: ", cv)
+            n = len(self.Y)
+            adjusted_r2 = 1 - (1 - r2_score(self.Y, y_pred)
+                               ) * (n - 1) / (n - 1 - 1)
+            print("Adjusted R2: ", adjusted_r2)
 
     def draw_metrics(self):
         """."""
-        # !!! SHAP
+        # !!! look at
         # https://github.com/shap/shap
         # https://github.com/catboost/tutorials/blob/master/model_analysis/shap_values_tutorial.ipynb
-        # !!!!!
-        # !!! feature statistic
         # https://catboost.ai/docs/en/concepts/python-reference_catboost_calc_feature_statistics
-        # https://github.com/catboost/tutorials/blob/master/model_analysis/feature_statistics_tutorial.ipynb
 
         if self.study is None:
             print("No study.")
@@ -240,19 +275,22 @@ class ModelCatBoost:
             # Confusion matrix
             cm_display = ConfusionMatrixDisplay.from_estimator(
                 self.model, self.X, self.Y)
-            cm_display.figure_.savefig(c.graph_folder + self.name + "feat_confusion.png")
+            cm_display.figure_.savefig(
+                c.graph_folder + self.name + "feat_confusion.png")
             self.__log('save confusion to: ' + c.graph_folder)
 
             # Receiver Operating Characteristic
             roc_display = RocCurveDisplay.from_estimator(
                 self.model, self.X, self.Y)
-            roc_display.figure_.savefig(c.graph_folder + self.name + "feat_ROC.png")
+            roc_display.figure_.savefig(
+                c.graph_folder + self.name + "feat_ROC.png")
             self.__log('save ROC to: ' + c.graph_folder)
 
             # Precision Recall
             pr_display = PrecisionRecallDisplay.from_estimator(
                 self.model, self.X, self.Y)
-            pr_display.figure_.savefig(c.graph_folder + self.name + "feat_PR.png")
+            pr_display.figure_.savefig(
+                c.graph_folder + self.name + "feat_PR.png")
             self.__log('save PR to: ' + c.graph_folder)
 
             #
@@ -265,12 +303,44 @@ class ModelCatBoost:
             plt.close()
 
         else:
-            mse = mean_squared_error(self.Y, y_pred)
-            plt.bar(['Mean Squared Error'], [mse])
-            plt.title("Model Mean Squared Error")
-            plt.ylabel("Score")
-            plt.show()
-            print(f"Mean Squared Error: {mse:.4f}")
+            #  pred vs true 
+            plt.figure(figsize=(100, 100))
+            plt.scatter(self.Y, y_pred)
+            plt.plot([self.Y.min(), self.Y.max()], [
+                     self.Y.min(), self.Y.max()], 'k--', lw=2)
+            plt.xlabel('Фактические значения')
+            plt.ylabel('Предсказанные значения')
+            plt.title('Предсказанные значения против фактических')
+            plt.savefig(c.graph_folder + self.name + "pred_true.png")
+            self.__log('save pred vs true to: ' + c.graph_folder)
+            plt.close()
+            #  residuals
+            plt.figure(figsize=(100, 100))
+            residuals = self.Y - y_pred
+            plt.scatter(y_pred, residuals)
+            plt.axhline(0, color='red', linestyle='--')
+            plt.xlabel('Предсказанные значения')
+            plt.ylabel('Остатки')
+            plt.title('График остатков')
+            plt.savefig(c.graph_folder + self.name + "residuals.png")
+            self.__log('save resuduals to: ' + c.graph_folder)
+            plt.close()
+            #  residuals hist
+            plt.figure(figsize=(100, 100))
+            plt.hist(residuals, bins=30, edgecolor='k')
+            plt.xlabel('Остатки')
+            plt.ylabel('Частота')
+            plt.title('Гистограмма остатков')
+            plt.savefig(c.graph_folder + self.name + "residuals_hist.png")
+            self.__log('save resuduals hist to: ' + c.graph_folder)
+            plt.close()
+            #  Quantile-Quantile
+            plt.figure(figsize=(100, 100))
+            stats.probplot(residuals, dist="norm", plot=plt)
+            plt.title('Q-Q график остатков')
+            plt.savefig(c.graph_folder + self.name + "Q_Q.png")
+            self.__log('save quantile-quantile to: ' + c.graph_folder)
+            plt.close()
 
     def export_model(self):
         """."""
