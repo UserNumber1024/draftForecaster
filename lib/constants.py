@@ -11,8 +11,11 @@ clf = 'clf'
 regr = 'regr'
 # ---------------------------------------------------------
 n_jobs = 2  # jobs for search hyperparams (-1 use all cores)
-n_trials = 2  # trials for optuna
+n_trials = 4  # trials for optuna
 seed = 0.2  # part of the data for testing
+timeout = 300 # stop optuna study after the given number of second(s) 
+task_type = 'CPU' # processor used for Catboost training (CPU / GPU)
+gc_after_trial = True # garbage collection after each trial
 # ---------------------------------------------------------
 n_days = 60  # days for normalization by mean
 profit_margin = 0.01  # price increase meaning "profit"

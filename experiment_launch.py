@@ -11,10 +11,10 @@ class ExperimentConfig:
 
     def __init__(self):
         self.source_tickers = c.file         # file, moex
-        self.source_XY = c.file              # file, calc
+        self.source_XY = c.calc              # file, calc
         self.store_tickers2file = False      # false after downloading data
-        self.store_XY2file = False           # false after preparing X and Y
-        self.draw_xy = False
+        self.store_XY2file = True           # false after preparing X and Y
+        self.draw_xy = True
         self.train_model = True
         self.print_metrics = True
         self.draw_metrics = True
@@ -53,7 +53,7 @@ def run_experiment(config: ExperimentConfig):
     # for period in [1, 2, 3, 4, 5]:
     for period in [1]:
         # for model_type in [c.clf]:
-        for model_type in [c.regr]:
+        for model_type in [c.regr, c.clf]:
             y_name = "profit_" if model_type == c.clf else "mean_delta_"
             y_name = f"{y_name}{period}"
 

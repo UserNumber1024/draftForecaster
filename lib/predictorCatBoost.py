@@ -95,7 +95,8 @@ class ModelCatBoost:
 
             model = CatBoostClassifier(**params,
                                        eval_metric="F1",
-                                       custom_metric=["F1", "AUC", "Accuracy"])
+                                       custom_metric=["F1", "AUC", "Accuracy"],
+                                       task_type=c.task_type)
             # !!!!!
             # https://github.com/catboost/tutorials/blob/master/cross_validation/cv_tutorial.ipynb
             cv_results = cv(Pool(X_train, y_train),
@@ -123,7 +124,8 @@ class ModelCatBoost:
 
             model = CatBoostRegressor(**params,
                                       eval_metric="MAPE",
-                                      custom_metric=["R2", "MAE", "RMSE"])
+                                      custom_metric=["R2", "MAE", "RMSE"],
+                                      task_type=c.task_type)
 
             cv_results = cv(Pool(X_train, y_train),
                             model.get_params(),
@@ -179,14 +181,14 @@ class ModelCatBoost:
         show_progress_bar = False
         self.study.optimize(self.__objective,
                             n_trials=c.n_trials,
-                            timeout=None,
+                            timeout=c.timeout,
                             n_jobs=c.n_jobs,
-                            gc_after_trial=False,
+                            gc_after_trial=c.gc_after_trial,
                             show_progress_bar=show_progress_bar)
 
         elapsed_time = time.time() - start_timer
         self.__log('finished: ' + time.strftime("%H:%M:%S",
-                   time.gmtime(elapsed_time)), False)
+                   time.gmtime(elapsed_time)))
 
     def print_best_params(self):
         """."""
@@ -303,7 +305,7 @@ class ModelCatBoost:
             plt.close()
 
         else:
-            #  pred vs true 
+            #  pred vs true
             plt.figure(figsize=(100, 100))
             plt.scatter(self.Y, y_pred)
             plt.plot([self.Y.min(), self.Y.max()], [

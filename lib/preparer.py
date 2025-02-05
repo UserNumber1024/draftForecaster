@@ -46,7 +46,7 @@ class MOEXtoXY:
             'adx5',
             'dm7',
             'dm12',
-            'dm21',
+            # 'dm21',
             'atr5',
             'atr9',
             'cci14',
@@ -58,17 +58,17 @@ class MOEXtoXY:
             'stdev6l',
             'stdev6h',
             'bop',
-            'trix11h',
-            'trix11l',
-            'trix11c',
+            # 'trix11h',
+            # 'trix11l',
+            # 'trix11c',
             'trix16h',
             'trix16l',
-            'trix16c',
+            # 'trix16c',
             'ema10_ohlc',
-            'ema25_ohlc',
-            'wma15_ohlc',
+            # 'ema25_ohlc',
+            # 'wma15_ohlc',
             'wma20_ohlc',
-            'bb8',
+            # 'bb8',
             'bb17',
             'kc21',
             'psar',
@@ -374,11 +374,13 @@ class MOEXtoXY:
                 macdm = macdm / mean.rolling(window=n_days).mean()
                 macdh = macd.iloc[:, 1]
                 macdh = macdh / mean.rolling(window=n_days).mean()
-                macds = macd.iloc[:, 2]
-                macds = macds / mean.rolling(window=n_days).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
-                               pd.Series(macdh, name=i + 'hist'),
-                               pd.Series(macds, name=i + 'sig')], axis=1)
+                               pd.Series(macdh, name=i + 'hist'), ], axis=1)
+                # macds = macd.iloc[:, 2]
+                # macds = macds / mean.rolling(window=n_days).mean()
+                # X = pd.concat([X, pd.Series(macdm, name=i),
+                #                pd.Series(macdh, name=i + 'hist'),
+                #                pd.Series(macds, name=i + 'sig')], axis=1)
             elif i == 'macd10_14_5':
                 macd = pta.macd(close=C, fast=10, slow=14, signal=5)
                 mean = pta.hlc3(H, L, C)
@@ -386,11 +388,13 @@ class MOEXtoXY:
                 macdm = macdm / mean.rolling(window=n_days).mean()
                 macdh = macd.iloc[:, 1]
                 macdh = macdh / mean.rolling(window=n_days).mean()
-                macds = macd.iloc[:, 2]
-                macds = macds / mean.rolling(window=n_days).mean()
                 X = pd.concat([X, pd.Series(macdm, name=i),
-                               pd.Series(macdh, name=i + 'hist'),
-                               pd.Series(macds, name=i + 'sig')], axis=1)
+                               pd.Series(macdh, name=i + 'hist')], axis=1)
+                # macds = macd.iloc[:, 2]
+                # macds = macds / mean.rolling(window=n_days).mean()
+                # X = pd.concat([X, pd.Series(macdm, name=i),
+                #                pd.Series(macdh, name=i + 'hist'),
+                #                pd.Series(macds, name=i + 'sig')], axis=1)
 
             elif i == 'rsi5':
                 X = pd.concat([X, pta.rsi(close=C, length=5) / 100], axis=1)
@@ -875,7 +879,6 @@ class MOEXtoXY:
             for idx, group in enumerate(groups):
                 file.write(f"High_Corr {idx + 1}: {group}"+'\n')
         self.__log('save x_corr to: ' + graph_folder, False)
-
 
         # fig_Y = plt.figure(figsize=(10, 10))
         # sns.histplot(data=self.Y['profit'])
